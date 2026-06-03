@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "moduleDetection": "force",
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@multi-wa/types": ["packages/types/src/index.ts"],
+      "@multi-wa/config": ["packages/config/src/index.ts"],
+      "@multi-wa/db": ["packages/db/src/index.ts"],
+      "@multi-wa/core": ["packages/core/src/index.ts"],
+      "@multi-wa/engine-baileys": ["packages/engine-baileys/src/index.ts"],
+      "@multi-wa/engine-zapo": ["packages/engine-zapo/src/index.ts"],
+      "@multi-wa/sdk": ["packages/sdk/src/index.ts"]
+    }
+  }
+}
