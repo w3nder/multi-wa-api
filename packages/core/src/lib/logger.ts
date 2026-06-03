@@ -1,7 +1,7 @@
 import { loadConfig } from '@multi-wa/config'
 import { pino } from 'pino'
 
-export type Logger = pino.Logger
+export type Logger = ReturnType<typeof pino>
 
 let root: Logger | null = null
 

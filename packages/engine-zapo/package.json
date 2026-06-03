@@ -1,0 +1,30 @@
+{
+  "name": "@multi-wa/engine-zapo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@multi-wa/core": "workspace:*",
+    "@multi-wa/db": "workspace:*",
+    "@multi-wa/types": "workspace:*",
+    "@zapo-js/store-postgres": "^1.0.1",
+    "pg": "^8.13.1",
+    "zapo-js": "^1.1.0"
+  }
+}
