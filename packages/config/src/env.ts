@@ -20,7 +20,10 @@ const envSchema = z.object({
   BODY_LIMIT: z.coerce.number().int().positive().default(10485760),
   WA_TABLE_PREFIX: z.string().default('wa_'),
   WEBHOOK_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
-  WEBHOOK_MAX_RETRIES: z.coerce.number().int().nonnegative().default(5)
+  WEBHOOK_MAX_RETRIES: z.coerce.number().int().nonnegative().default(5),
+  BOOTSTRAP_ADMIN_EMAIL: z.string().email().optional(),
+  BOOTSTRAP_ADMIN_PASSWORD: z.string().min(8).optional(),
+  BOOTSTRAP_TENANT_NAME: z.string().default('default')
 })
 
 export type Env = z.infer<typeof envSchema>

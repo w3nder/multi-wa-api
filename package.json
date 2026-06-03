@@ -21,6 +21,7 @@
     "onlyBuiltDependencies": ["argon2", "esbuild", "protobufjs"]
   },
   "devDependencies": {
+    "@eslint/js": "^9.18.0",
     "@types/node": "^22.10.5",
     "eslint": "^9.18.0",
     "prettier": "^3.4.2",
