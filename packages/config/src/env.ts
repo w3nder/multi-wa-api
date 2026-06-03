@@ -1,7 +1,20 @@
+import { existsSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
 import { config as loadDotenv } from 'dotenv'
 import { z } from 'zod'
 
-loadDotenv()
+function findEnvFile(): string | undefined {
+  let dir = process.cwd()
+  for (;;) {
+    const candidate = resolve(dir, '.env')
+    if (existsSync(candidate)) return candidate
+    const parent = dirname(dir)
+    if (parent === dir) return undefined
+    dir = parent
+  }
+}
+
+loadDotenv({ path: findEnvFile() })
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
