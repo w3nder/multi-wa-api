@@ -1,32 +1,18 @@
 import { errors, type EngineOptions, type WaEngine } from '@multi-wa/core'
 import type { EngineEvent, MessageContent, SendMessageResult } from '@multi-wa/types'
-import makeWASocket, {
-  DisconnectReason,
-  getContentType,
-  jidNormalizedUser,
-  type WAMessage,
-  type WASocket
-} from 'baileys'
+import makeWASocket, { DisconnectReason, jidNormalizedUser, type WASocket } from 'baileys'
 import { clearBaileys, usePostgresAuthState } from './auth-state'
+import {
+  mapBaileysAck,
+  mapBaileysMessageEvent,
+  mapBaileysPresence,
+  mapBaileysReceipt
+} from './events'
 import { createBaileysGroups } from './groups'
 import { toBaileysLogger } from './logger'
 import { toBaileysContent } from './translate'
 
 const RECONNECT_DELAY_MS = 2000
-
-function extractText(message: WAMessage): string | undefined {
-  const content = message.message
-  if (!content) return undefined
-  const type = getContentType(content)
-  if (type === 'conversation') return content.conversation ?? undefined
-  if (type === 'extendedTextMessage') return content.extendedTextMessage?.text ?? undefined
-  return (
-    content.imageMessage?.caption ??
-    content.videoMessage?.caption ??
-    content.documentMessage?.caption ??
-    undefined
-  )
-}
 
 export class BaileysEngine implements WaEngine {
   readonly kind = 'baileys' as const
@@ -82,20 +68,28 @@ export class BaileysEngine implements WaEngine {
     sock.ev.on('messages.upsert', ({ messages, type }) => {
       if (type !== 'notify') return
       for (const message of messages) {
-        const chat = message.key.remoteJid
-        if (!chat) continue
-        this.emit({
-          type: 'message',
-          id: message.key.id ?? undefined,
-          chat,
-          from: message.key.participant ?? chat,
-          fromMe: Boolean(message.key.fromMe),
-          text: extractText(message),
-          timestamp:
-            typeof message.messageTimestamp === 'number'
-              ? message.messageTimestamp
-              : Number(message.messageTimestamp ?? 0)
-        })
+        if (!message.key.remoteJid) continue
+        this.emit(mapBaileysMessageEvent(message))
+      }
+    })
+
+    sock.ev.on('messages.update', (updates) => {
+      for (const update of updates) {
+        const ack = mapBaileysAck(update)
+        if (ack) this.emit(ack)
+      }
+    })
+
+    sock.ev.on('message-receipt.update', (updates) => {
+      for (const update of updates) {
+        const ack = mapBaileysReceipt(update)
+        if (ack) this.emit(ack)
+      }
+    })
+
+    sock.ev.on('presence.update', (update) => {
+      for (const event of mapBaileysPresence(update)) {
+        this.emit(event)
       }
     })
   }
@@ -113,13 +107,13 @@ export class BaileysEngine implements WaEngine {
     }
 
     if (update.connection === 'connecting') {
-      this.emit({ type: 'status', status: 'connecting' })
+      this.emit({ type: 'connection', status: 'connecting' })
     }
 
     if (update.connection === 'open') {
       const meJid = this.sock?.user?.id ? jidNormalizedUser(this.sock.user.id) : undefined
       this.options.logger.info({ meJid, name: this.sock?.user?.name }, 'connected')
-      this.emit({ type: 'status', status: 'connected', meJid })
+      this.emit({ type: 'connection', status: 'connected', meJid })
     }
 
     if (update.connection === 'close') {
@@ -129,13 +123,13 @@ export class BaileysEngine implements WaEngine {
       if (statusCode === DisconnectReason.loggedOut) {
         await clearBaileys(this.options.pool, this.options.sessionId)
         this.options.logger.warn('logged out, credentials cleared')
-        this.emit({ type: 'status', status: 'logged_out' })
+        this.emit({ type: 'connection', status: 'logged_out' })
         return
       }
 
       if (!this.stopping) {
         this.options.logger.warn({ statusCode }, 'connection closed, reconnecting')
-        this.emit({ type: 'status', status: 'disconnected' })
+        this.emit({ type: 'connection', status: 'disconnected' })
         setTimeout(() => {
           if (!this.stopping) void this.connect()
         }, RECONNECT_DELAY_MS)

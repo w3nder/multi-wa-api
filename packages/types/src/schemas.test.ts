@@ -119,12 +119,33 @@ describe('group schemas', () => {
 })
 
 describe('engine event schema', () => {
-  it('parses qr, status and message events', () => {
+  it('parses qr, connection, message, ack and presence events', () => {
     expect(engineEventSchema.safeParse({ type: 'qr', qr: 'abc' }).success).toBe(true)
-    expect(engineEventSchema.safeParse({ type: 'status', status: 'connected' }).success).toBe(true)
+    expect(engineEventSchema.safeParse({ type: 'connection', status: 'connected' }).success).toBe(
+      true
+    )
     expect(
-      engineEventSchema.safeParse({ type: 'message', chat: 'c', from: 'f', fromMe: false }).success
+      engineEventSchema.safeParse({
+        type: 'message',
+        chat: 'c',
+        from: 'f',
+        fromMe: false,
+        isGroup: false,
+        content: { type: 'text', text: 'hi' }
+      }).success
     ).toBe(true)
-    expect(engineEventSchema.safeParse({ type: 'status', status: 'bogus' }).success).toBe(false)
+    expect(
+      engineEventSchema.safeParse({
+        type: 'ack',
+        ids: ['1'],
+        chat: 'c',
+        isGroup: false,
+        status: 'read'
+      }).success
+    ).toBe(true)
+    expect(
+      engineEventSchema.safeParse({ type: 'presence', chat: 'c', status: 'composing' }).success
+    ).toBe(true)
+    expect(engineEventSchema.safeParse({ type: 'connection', status: 'bogus' }).success).toBe(false)
   })
 })

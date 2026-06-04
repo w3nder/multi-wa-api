@@ -1,4 +1,5 @@
 export * from './engine'
+export * from './inbound'
 export * from './message'
 export * from './session'
 export * from './auth'

@@ -57,7 +57,8 @@ describe('WebhookDispatcher', () => {
       chat: 'c@s',
       from: 'c@s',
       fromMe: false,
-      text: 'hi'
+      isGroup: false,
+      content: { type: 'text', text: 'hi' }
     })
 
     const received = await server.next
@@ -65,7 +66,14 @@ describe('WebhookDispatcher', () => {
 
     const expectedBody = JSON.stringify({
       sessionId: 's1',
-      event: { type: 'message', chat: 'c@s', from: 'c@s', fromMe: false, text: 'hi' }
+      event: {
+        type: 'message',
+        chat: 'c@s',
+        from: 'c@s',
+        fromMe: false,
+        isGroup: false,
+        content: { type: 'text', text: 'hi' }
+      }
     })
     expect(received.body).toBe(expectedBody)
     const expectedSig = `sha256=${createHmac('sha256', secret).update(expectedBody).digest('hex')}`
@@ -83,7 +91,7 @@ describe('WebhookDispatcher', () => {
       }
     } as unknown as WebhookRepository
     const dispatcher = new WebhookDispatcher(repository, logger, { timeoutMs: 500, maxRetries: 0 })
-    dispatcher.dispatch('tenant1', 's1', { type: 'status', status: 'connected' })
+    dispatcher.dispatch('tenant1', 's1', { type: 'connection', status: 'connected' })
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(calls).toBe(1)
   })

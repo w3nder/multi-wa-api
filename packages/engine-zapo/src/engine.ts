@@ -3,6 +3,7 @@ import type { EngineEvent, MessageContent, SendMessageResult } from '@multi-wa/t
 import { WaClient } from 'zapo-js'
 import type { PgCleanupPoller } from '@zapo-js/store-postgres'
 import { buildZapoStore, type ZapoStoreBundle } from './store'
+import { mapZapoChatstate, mapZapoMessageEvent, mapZapoPresence, mapZapoReceipt } from './events'
 import { createZapoGroups } from './groups'
 import { toZapoLogger } from './logger'
 import { toZapoContent } from './translate'
@@ -65,7 +66,7 @@ export class ZapoEngine implements WaEngine {
 
     client.on('auth_paired', ({ credentials }) => {
       this.options.logger.info({ meJid: credentials.meJid }, 'paired')
-      this.emit({ type: 'status', status: 'connected', meJid: credentials.meJid })
+      this.emit({ type: 'connection', status: 'connected', meJid: credentials.meJid })
     })
 
     client.on('connection', (event) => {
@@ -73,16 +74,20 @@ export class ZapoEngine implements WaEngine {
     })
 
     client.on('message', (event) => {
-      const chat = event.key.remoteJid
-      this.emit({
-        type: 'message',
-        id: event.key.id,
-        chat,
-        from: event.key.participant ?? chat,
-        fromMe: event.key.fromMe,
-        text: extractText(event.message),
-        timestamp: event.timestampSeconds
-      })
+      this.emit(mapZapoMessageEvent(event))
+    })
+
+    client.on('receipt', (event) => {
+      const ack = mapZapoReceipt(event)
+      if (ack) this.emit(ack)
+    })
+
+    client.on('presence', (event) => {
+      this.emit(mapZapoPresence(event))
+    })
+
+    client.on('chatstate', (event) => {
+      this.emit(mapZapoChatstate(event))
     })
 
     await client.connect()
@@ -94,7 +99,7 @@ export class ZapoEngine implements WaEngine {
         .store.session(this.options.sessionId)
         .auth.load()
       this.options.logger.info({ meJid: credentials?.meJid }, 'connected')
-      this.emit({ type: 'status', status: 'connected', meJid: credentials?.meJid })
+      this.emit({ type: 'connection', status: 'connected', meJid: credentials?.meJid })
       return
     }
 
@@ -103,12 +108,12 @@ export class ZapoEngine implements WaEngine {
       if (event.isLogout) {
         await this.destroyBundle()
         this.options.logger.warn('logged out')
-        this.emit({ type: 'status', status: 'logged_out' })
+        this.emit({ type: 'connection', status: 'logged_out' })
         return
       }
       if (!this.stopping) {
         this.options.logger.warn('connection closed, reconnecting')
-        this.emit({ type: 'status', status: 'disconnected' })
+        this.emit({ type: 'connection', status: 'disconnected' })
         setTimeout(() => {
           if (!this.stopping) void this.connect()
         }, RECONNECT_DELAY_MS)
@@ -142,16 +147,6 @@ export class ZapoEngine implements WaEngine {
     const result = await this.requireClient().message.send(to, await toZapoContent(content))
     return { id: result.id }
   }
-}
-
-function extractText(
-  message:
-    | { conversation?: string | null; extendedTextMessage?: { text?: string | null } | null }
-    | null
-    | undefined
-): string | undefined {
-  if (!message) return undefined
-  return message.conversation ?? message.extendedTextMessage?.text ?? undefined
 }
 
 export function createZapoEngine(options: EngineOptions): WaEngine {

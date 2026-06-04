@@ -102,7 +102,7 @@ export class SessionManager {
     if (event.type === 'qr') {
       managed.lastQr = event.qr
       await this.deps.repository.updateStatus(sessionId, 'qr').catch(() => undefined)
-    } else if (event.type === 'status') {
+    } else if (event.type === 'connection') {
       if (event.status === 'connected') managed.lastQr = null
       await this.deps.repository
         .updateStatus(sessionId, event.status, event.meJid ?? null)

@@ -90,13 +90,20 @@ describe('SessionManager', () => {
     engine!.emit({ type: 'qr', qr: 'QR1' })
     expect(manager.getLastQr('s1')).toBe('QR1')
 
-    engine!.emit({ type: 'status', status: 'connected', meJid: 'me@s.whatsapp.net' })
+    engine!.emit({ type: 'connection', status: 'connected', meJid: 'me@s.whatsapp.net' })
     expect(manager.getLastQr('s1')).toBeNull()
 
-    engine!.emit({ type: 'message', chat: 'c@s', from: 'c@s', fromMe: false, text: 'hi' })
+    engine!.emit({
+      type: 'message',
+      chat: 'c@s',
+      from: 'c@s',
+      fromMe: false,
+      isGroup: false,
+      content: { type: 'text', text: 'hi' }
+    })
     await flush()
 
-    expect(received.map((event) => event.type).sort()).toEqual(['message', 'qr', 'status'])
+    expect(received.map((event) => event.type).sort()).toEqual(['connection', 'message', 'qr'])
     expect(webhookEvents).toHaveLength(3)
     expect(statuses.some((entry) => entry.status === 'qr')).toBe(true)
     expect(statuses.some((entry) => entry.status === 'connected')).toBe(true)

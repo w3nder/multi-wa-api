@@ -31,7 +31,7 @@ beforeAll(async () => {
       res.writeHead(200, { 'Content-Type': 'text/event-stream' })
       res.write(`data: ${JSON.stringify({ type: 'qr', qr: 'QR1' })}\n\n`)
       res.write(': ping\n\n')
-      res.write(`data: ${JSON.stringify({ type: 'status', status: 'connected' })}\n\n`)
+      res.write(`data: ${JSON.stringify({ type: 'connection', status: 'connected' })}\n\n`)
       res.end()
       return
     }
@@ -90,7 +90,7 @@ describe('sdk client', () => {
     for await (const event of client.sessions.events('s1')) events.push(event)
     expect(events).toEqual([
       { type: 'qr', qr: 'QR1' },
-      { type: 'status', status: 'connected' }
+      { type: 'connection', status: 'connected' }
     ])
   })
 })
