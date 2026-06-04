@@ -12,7 +12,14 @@ export function getLogger(): Logger {
     level: env.LOG_LEVEL,
     transport:
       env.NODE_ENV === 'development'
-        ? { target: 'pino-pretty', options: { translateTime: 'SYS:standard' } }
+        ? {
+            target: 'pino-pretty',
+            options: {
+              translateTime: 'SYS:standard',
+              ignore: 'pid,hostname,engine,session',
+              messageFormat: '{if engine}[{engine}] {end}{if session}{session} {end}{msg}'
+            }
+          }
         : undefined
   })
   return root

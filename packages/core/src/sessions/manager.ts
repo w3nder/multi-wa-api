@@ -39,19 +39,19 @@ export class SessionManager {
     return this.active.get(sessionId)?.engine ?? null
   }
 
-  buildOptions(sessionId: string): EngineOptions {
+  buildOptions(sessionId: string, engine?: string): EngineOptions {
     return {
       sessionId,
       pool: this.deps.pool,
       tablePrefix: this.deps.tablePrefix,
-      logger: this.deps.logger.child({ session: sessionId })
+      logger: this.deps.logger.child(engine ? { engine, session: sessionId } : { session: sessionId })
     }
   }
 
   async start(session: Session, tenantId: string): Promise<void> {
     if (this.active.has(session.id)) return
     const factory = this.deps.registry[session.engine]
-    const engine = factory(this.buildOptions(session.id))
+    const engine = factory(this.buildOptions(session.id, session.engine))
     const managed: ManagedSession = { engine, tenantId, lastQr: null, listeners: new Set() }
     this.active.set(session.id, managed)
     engine.onEvent((event) => {

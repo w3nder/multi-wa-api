@@ -44,6 +44,7 @@ export class BaileysEngine implements WaEngine {
 
   async start(): Promise<void> {
     this.stopping = false
+    this.options.logger.info('starting engine')
     await this.connect()
   }
 
@@ -99,6 +100,7 @@ export class BaileysEngine implements WaEngine {
     }>
   ): Promise<void> {
     if (update.qr) {
+      this.options.logger.info('qr code generated, awaiting scan')
       this.emit({ type: 'qr', qr: update.qr })
     }
 
@@ -108,6 +110,7 @@ export class BaileysEngine implements WaEngine {
 
     if (update.connection === 'open') {
       const meJid = this.sock?.user?.id ? jidNormalizedUser(this.sock.user.id) : undefined
+      this.options.logger.info({ meJid, name: this.sock?.user?.name }, 'connected')
       this.emit({ type: 'status', status: 'connected', meJid })
     }
 
@@ -117,11 +120,13 @@ export class BaileysEngine implements WaEngine {
 
       if (statusCode === DisconnectReason.loggedOut) {
         await clearBaileys(this.options.pool, this.options.sessionId)
+        this.options.logger.warn('logged out, credentials cleared')
         this.emit({ type: 'status', status: 'logged_out' })
         return
       }
 
       if (!this.stopping) {
+        this.options.logger.warn({ statusCode }, 'connection closed, reconnecting')
         this.emit({ type: 'status', status: 'disconnected' })
         setTimeout(() => {
           if (!this.stopping) void this.connect()

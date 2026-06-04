@@ -26,6 +26,7 @@ export class ZapoEngine implements WaEngine {
 
   async start(): Promise<void> {
     this.stopping = false
+    this.options.logger.info('starting engine')
     await this.connect()
   }
 
@@ -44,10 +45,12 @@ export class ZapoEngine implements WaEngine {
     this.client = client
 
     client.on('auth_qr', ({ qr }) => {
+      this.options.logger.info('qr code generated, awaiting scan')
       this.emit({ type: 'qr', qr })
     })
 
     client.on('auth_paired', ({ credentials }) => {
+      this.options.logger.info({ meJid: credentials.meJid }, 'paired')
       this.emit({ type: 'status', status: 'connected', meJid: credentials.meJid })
     })
 
@@ -78,6 +81,7 @@ export class ZapoEngine implements WaEngine {
   ): Promise<void> {
     if (event.status === 'open') {
       const credentials = await store.session(this.options.sessionId).auth.load()
+      this.options.logger.info({ meJid: credentials?.meJid }, 'connected')
       this.emit({ type: 'status', status: 'connected', meJid: credentials?.meJid })
       return
     }
@@ -85,10 +89,12 @@ export class ZapoEngine implements WaEngine {
     if (event.status === 'close') {
       this.teardown()
       if (event.isLogout) {
+        this.options.logger.warn('logged out')
         this.emit({ type: 'status', status: 'logged_out' })
         return
       }
       if (!this.stopping) {
+        this.options.logger.warn('connection closed, reconnecting')
         this.emit({ type: 'status', status: 'disconnected' })
         setTimeout(() => {
           if (!this.stopping) void this.connect()
