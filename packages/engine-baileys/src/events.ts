@@ -5,7 +5,8 @@ import type {
   MessageAckStatus,
   MessageEvent,
   PresenceEvent,
-  PresenceStatus
+  PresenceStatus,
+  QuotedMessage
 } from '@multi-wa/types'
 import { getContentType, type WAMessage, type WAMessageKey, type proto } from 'baileys'
 
@@ -70,6 +71,38 @@ function unwrap(content: proto.IMessage): proto.IMessage {
   }
   if (type === 'editedMessage') return unwrap(content.editedMessage?.message ?? {})
   return content
+}
+
+function extractContextInfo(content: proto.IMessage): proto.IContextInfo | null | undefined {
+  const type = getContentType(content)
+  if (!type) return undefined
+  const node = content[type as keyof proto.IMessage]
+  if (node && typeof node === 'object' && 'contextInfo' in node) {
+    return (node as { contextInfo?: proto.IContextInfo | null }).contextInfo
+  }
+  return undefined
+}
+
+interface ContextFields {
+  mentions?: string[]
+  quoted?: QuotedMessage
+}
+
+export function mapBaileysContext(message: proto.IMessage | null | undefined): ContextFields {
+  if (!message) return {}
+  const ctx = extractContextInfo(unwrap(message))
+  if (!ctx) return {}
+  const fields: ContextFields = {}
+  const mentions = (ctx.mentionedJid ?? []).filter((jid): jid is string => Boolean(jid))
+  if (mentions.length) fields.mentions = mentions
+  if (ctx.stanzaId) {
+    fields.quoted = {
+      id: ctx.stanzaId,
+      participant: ctx.participant ?? undefined,
+      content: ctx.quotedMessage ? mapBaileysContent(ctx.quotedMessage) : undefined
+    }
+  }
+  return fields
 }
 
 export function mapBaileysContent(message: proto.IMessage | null | undefined): InboundContent {
@@ -191,7 +224,8 @@ export function mapBaileysMessageEvent(message: WAMessage): MessageEvent {
     participant: message.key.participant ?? undefined,
     pushName: message.pushName ?? undefined,
     timestamp: toNumber(message.messageTimestamp),
-    content: mapBaileysContent(message.message)
+    content: mapBaileysContent(message.message),
+    ...mapBaileysContext(message.message)
   }
 }
 

@@ -8,6 +8,7 @@ import type {
 import {
   mapZapoChatstate,
   mapZapoContent,
+  mapZapoContext,
   mapZapoMessageEvent,
   mapZapoPresence,
   mapZapoReceipt
@@ -235,6 +236,71 @@ describe('mapZapoMessageEvent', () => {
     expect(event.from).toBe('55@s.whatsapp.net')
     expect(event.isGroup).toBe(true)
     expect(event.content).toEqual({ type: 'unknown' })
+  })
+
+  it('includes mentions and quoted when present, omits them otherwise', () => {
+    const plain = mapZapoMessageEvent(base({ message: { conversation: 'oi' } }))
+    expect(plain).not.toHaveProperty('mentions')
+    expect(plain).not.toHaveProperty('quoted')
+
+    const reply = mapZapoMessageEvent(
+      base({
+        message: {
+          extendedTextMessage: {
+            text: '@77 sim',
+            contextInfo: {
+              mentionedJid: ['77@s.whatsapp.net'],
+              stanzaId: 'ORIG1',
+              participant: '77@s.whatsapp.net',
+              quotedMessage: { conversation: 'alguém confirma?' }
+            }
+          }
+        }
+      })
+    )
+    expect(reply.mentions).toEqual(['77@s.whatsapp.net'])
+    expect(reply.quoted).toEqual({
+      id: 'ORIG1',
+      participant: '77@s.whatsapp.net',
+      content: { type: 'text', text: 'alguém confirma?' }
+    })
+  })
+})
+
+describe('mapZapoContext', () => {
+  it('returns empty object without message or context', () => {
+    expect(mapZapoContext(null)).toEqual({})
+    expect(mapZapoContext({ conversation: 'hi' })).toEqual({})
+    expect(mapZapoContext({ extendedTextMessage: { text: 'hi' } })).toEqual({})
+  })
+
+  it('extracts mentions filtering falsy jids', () => {
+    expect(
+      mapZapoContext({
+        extendedTextMessage: {
+          text: 'hi',
+          contextInfo: { mentionedJid: ['a@s.whatsapp.net', '', 'b@s.whatsapp.net'] }
+        }
+      })
+    ).toEqual({ mentions: ['a@s.whatsapp.net', 'b@s.whatsapp.net'] })
+  })
+
+  it('reads context from media messages and unwraps wrappers', () => {
+    expect(
+      mapZapoContext({
+        ephemeralMessage: {
+          message: {
+            imageMessage: { contextInfo: { stanzaId: 'Q1', participant: 'x@s.whatsapp.net' } }
+          }
+        }
+      })
+    ).toEqual({ quoted: { id: 'Q1', participant: 'x@s.whatsapp.net', content: undefined } })
+  })
+
+  it('drops quoted when there is no stanzaId', () => {
+    expect(mapZapoContext({ extendedTextMessage: { contextInfo: { participant: 'x' } } })).toEqual(
+      {}
+    )
   })
 })
 

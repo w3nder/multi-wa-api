@@ -41,6 +41,13 @@ export const connectionEventSchema = z.object({
   meJid: z.string().optional()
 })
 
+export const quotedMessageSchema = z.object({
+  id: z.string(),
+  participant: z.string().optional(),
+  content: inboundContentSchema.optional()
+})
+export type QuotedMessage = z.infer<typeof quotedMessageSchema>
+
 export const messageEventSchema = z.object({
   type: z.literal('message'),
   id: z.string().optional(),
@@ -51,7 +58,9 @@ export const messageEventSchema = z.object({
   participant: z.string().optional(),
   pushName: z.string().optional(),
   timestamp: z.number().optional(),
-  content: inboundContentSchema
+  content: inboundContentSchema,
+  mentions: z.array(z.string()).optional(),
+  quoted: quotedMessageSchema.optional()
 })
 
 export const ackEventSchema = z.object({

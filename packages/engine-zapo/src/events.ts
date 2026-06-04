@@ -4,7 +4,8 @@ import type {
   InboundMedia,
   MessageAckStatus,
   MessageEvent,
-  PresenceEvent
+  PresenceEvent,
+  QuotedMessage
 } from '@multi-wa/types'
 import {
   getContentType,
@@ -77,6 +78,45 @@ function unwrap(content: ZapoMessage): ZapoMessage {
   }
   if (type === 'editedMessage') return unwrap(content.editedMessage?.message ?? {})
   return content
+}
+
+interface ContextInfoLike {
+  mentionedJid?: (string | null | undefined)[] | null
+  stanzaId?: string | null
+  participant?: string | null
+  quotedMessage?: ZapoMessage | null
+}
+
+function extractContextInfo(content: ZapoMessage): ContextInfoLike | undefined {
+  const type = getContentType(content)
+  if (!type) return undefined
+  const node = content[type as keyof ZapoMessage]
+  if (node && typeof node === 'object' && 'contextInfo' in node) {
+    return (node as { contextInfo?: ContextInfoLike | null }).contextInfo ?? undefined
+  }
+  return undefined
+}
+
+interface ContextFields {
+  mentions?: string[]
+  quoted?: QuotedMessage
+}
+
+export function mapZapoContext(message: ZapoMessage | null | undefined): ContextFields {
+  if (!message) return {}
+  const ctx = extractContextInfo(unwrap(message))
+  if (!ctx) return {}
+  const fields: ContextFields = {}
+  const mentions = (ctx.mentionedJid ?? []).filter((jid): jid is string => Boolean(jid))
+  if (mentions.length) fields.mentions = mentions
+  if (ctx.stanzaId) {
+    fields.quoted = {
+      id: ctx.stanzaId,
+      participant: ctx.participant ?? undefined,
+      content: ctx.quotedMessage ? mapZapoContent(ctx.quotedMessage) : undefined
+    }
+  }
+  return fields
 }
 
 export function mapZapoContent(message: ZapoMessage | null | undefined): InboundContent {
@@ -198,7 +238,8 @@ export function mapZapoMessageEvent(event: WaIncomingMessageEvent): MessageEvent
     participant: event.key.participant ?? undefined,
     pushName: event.pushName ?? undefined,
     timestamp: event.timestampSeconds ?? undefined,
-    content: mapZapoContent(event.message)
+    content: mapZapoContent(event.message),
+    ...mapZapoContext(event.message)
   }
 }
 

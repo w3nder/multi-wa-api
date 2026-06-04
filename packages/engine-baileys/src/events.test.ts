@@ -3,6 +3,7 @@ import {
   mapBaileysAck,
   mapBaileysAckStatus,
   mapBaileysContent,
+  mapBaileysContext,
   mapBaileysMessageEvent,
   mapBaileysPresence,
   mapBaileysReceipt
@@ -229,6 +230,73 @@ describe('mapBaileysMessageEvent', () => {
     expect(event.from).toBe('55@s.whatsapp.net')
     expect(event.isGroup).toBe(true)
     expect(event.content).toEqual({ type: 'unknown' })
+  })
+
+  it('includes mentions and quoted when present, omits them otherwise', () => {
+    const plain = mapBaileysMessageEvent({
+      key: { remoteJid: 'c@s.whatsapp.net', id: 'M1' },
+      message: { conversation: 'oi' }
+    })
+    expect(plain).not.toHaveProperty('mentions')
+    expect(plain).not.toHaveProperty('quoted')
+
+    const reply = mapBaileysMessageEvent({
+      key: { remoteJid: '123@g.us', id: 'M3', participant: '55@s.whatsapp.net' },
+      message: {
+        extendedTextMessage: {
+          text: '@77 sim',
+          contextInfo: {
+            mentionedJid: ['77@s.whatsapp.net'],
+            stanzaId: 'ORIG1',
+            participant: '77@s.whatsapp.net',
+            quotedMessage: { conversation: 'alguém confirma?' }
+          }
+        }
+      }
+    })
+    expect(reply.mentions).toEqual(['77@s.whatsapp.net'])
+    expect(reply.quoted).toEqual({
+      id: 'ORIG1',
+      participant: '77@s.whatsapp.net',
+      content: { type: 'text', text: 'alguém confirma?' }
+    })
+  })
+})
+
+describe('mapBaileysContext', () => {
+  it('returns empty object without message or context', () => {
+    expect(mapBaileysContext(null)).toEqual({})
+    expect(mapBaileysContext({ conversation: 'hi' })).toEqual({})
+    expect(mapBaileysContext({ extendedTextMessage: { text: 'hi' } })).toEqual({})
+  })
+
+  it('extracts mentions filtering falsy jids', () => {
+    expect(
+      mapBaileysContext({
+        extendedTextMessage: {
+          text: 'hi',
+          contextInfo: { mentionedJid: ['a@s.whatsapp.net', '', 'b@s.whatsapp.net'] }
+        }
+      })
+    ).toEqual({ mentions: ['a@s.whatsapp.net', 'b@s.whatsapp.net'] })
+  })
+
+  it('reads context from media messages and unwraps wrappers', () => {
+    expect(
+      mapBaileysContext({
+        ephemeralMessage: {
+          message: {
+            imageMessage: { contextInfo: { stanzaId: 'Q1', participant: 'x@s.whatsapp.net' } }
+          }
+        }
+      })
+    ).toEqual({ quoted: { id: 'Q1', participant: 'x@s.whatsapp.net', content: undefined } })
+  })
+
+  it('drops quoted when there is no stanzaId', () => {
+    expect(
+      mapBaileysContext({ extendedTextMessage: { contextInfo: { participant: 'x' } } })
+    ).toEqual({})
   })
 })
 

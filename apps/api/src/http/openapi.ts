@@ -211,7 +211,22 @@ const WEBHOOK_DELIVERY_SCHEMA: OpenAPIV3.SchemaObject = {
         participant: { type: 'string' },
         pushName: { type: 'string' },
         timestamp: { type: 'number' },
-        content: INBOUND_CONTENT_SCHEMA
+        content: INBOUND_CONTENT_SCHEMA,
+        mentions: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'jids mentioned in the message (omitted when none).'
+        },
+        quoted: {
+          type: 'object',
+          description: 'Set when the message replies to/quotes another message.',
+          required: ['id'],
+          properties: {
+            id: { type: 'string', description: 'id of the quoted message' },
+            participant: { type: 'string', description: 'author jid of the quoted message' },
+            content: INBOUND_CONTENT_SCHEMA
+          }
+        }
       }
     },
     {
@@ -290,6 +305,26 @@ const WEBHOOK_DELIVERY_EXAMPLES: Record<string, OpenAPIV3.ExampleObject> = {
       content: { type: 'image', media: { mimetype: 'image/jpeg', size: 12345 }, caption: 'Olha!' }
     }
   },
+  message_reply_mention_group: {
+    summary: 'message event (reply with mention, group)',
+    value: {
+      type: 'message',
+      id: '3EB0...',
+      chat: '120363000000000000@g.us',
+      from: '5511888888888@s.whatsapp.net',
+      fromMe: false,
+      isGroup: true,
+      participant: '5511888888888@s.whatsapp.net',
+      timestamp: 1730000000,
+      content: { type: 'text', text: '@5511777777777 isso mesmo!' },
+      mentions: ['5511777777777@s.whatsapp.net'],
+      quoted: {
+        id: '3EA9...',
+        participant: '5511777777777@s.whatsapp.net',
+        content: { type: 'text', text: 'alguém confirma?' }
+      }
+    }
+  },
   ack: {
     summary: 'ack event (read)',
     value: {
@@ -314,7 +349,7 @@ const WEBHOOK_DESCRIPTION = [
   'Each delivery is a JSON POST to your `url` with one of these payloads:',
   '- `qr`: new QR code to scan.',
   '- `connection`: channel/connection state (`connecting`, `qr`, `connected`, `disconnected`, `logged_out`).',
-  '- `message`: inbound/outbound messages of any type. `content` is normalized and discriminated by `type` (text, image, video, audio, document, sticker, location, contact, reaction, poll, buttons_response, list_response). Group messages have `isGroup: true`, `chat` ending in `@g.us` and `participant` set to the author jid. Media payloads carry metadata only; fetch bytes separately.',
+  '- `message`: inbound/outbound messages of any type. `content` is normalized and discriminated by `type` (text, image, video, audio, document, sticker, location, contact, reaction, poll, buttons_response, list_response). Group messages have `isGroup: true`, `chat` ending in `@g.us` and `participant` set to the author jid. `mentions` lists the jids mentioned in the message (omitted when none); `quoted` carries the replied-to message (`id`, `participant`, normalized `content`) when the message is a reply. Media payloads carry metadata only; fetch bytes separately.',
   '- `ack`: message delivery status for the given `ids` (`pending`, `sent`, `delivered`, `read`, `played`, `error`).',
   '- `presence`: chat presence (`available`, `unavailable`, `composing`, `recording`, `paused`).',
   '',
