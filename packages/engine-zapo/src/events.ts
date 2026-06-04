@@ -227,6 +227,12 @@ export function mapZapoContent(message: ZapoMessage | null | undefined): Inbound
   }
 }
 
+/**
+ * Convert a raw WhatsApp incoming message envelope into a normalized MessageEvent.
+ *
+ * @param event - The incoming WhatsApp message event to normalize
+ * @returns A normalized MessageEvent containing chat identifiers, sender info (`from`, `participant`, `fromAlt`, `fromMe`), message `id`, `pushName`, `timestamp`, mapped `content`, and any extracted context fields (mentions/quoted)
+ */
 export function mapZapoMessageEvent(event: WaIncomingMessageEvent): MessageEvent {
   const chat = event.key.remoteJid ?? ''
   return {
@@ -246,10 +252,10 @@ export function mapZapoMessageEvent(event: WaIncomingMessageEvent): MessageEvent
 }
 
 /**
- * Maps a decrypted reaction addon (`message_addon` with `kind: 'reaction'`) to
- * the same normalized reaction shape as a message event. `event.key` is the
- * envelope (who reacted); the reaction's `key`/`targetMessageId` is the target.
- * Returns null for non-reaction addons (poll votes, edits, ...).
+ * Convert a decrypted reaction addon into the normalized MessageEvent shape used for message events.
+ *
+ * @param event - The incoming addon event containing the envelope (`key`) and a `decrypted` addon payload.
+ * @returns A `MessageEvent` representing the reaction, or `null` if the decrypted addon is missing or its `kind` is not `'reaction'`.
  */
 export function mapZapoReaction(event: WaIncomingAddonEvent): MessageEvent | null {
   const addon = event.decrypted
@@ -277,6 +283,12 @@ export function mapZapoReaction(event: WaIncomingAddonEvent): MessageEvent | nul
   }
 }
 
+/**
+ * Map a raw receipt status string to the internal message acknowledgment status.
+ *
+ * @param status - Raw receipt status value from an incoming receipt event
+ * @returns `'delivered'` if `status` is `'delivered'`, `'read'` if `status` is `'read'`, `'played'` if `status` is `'played'`, `null` otherwise
+ */
 function mapZapoReceiptStatus(status: string): MessageAckStatus | null {
   switch (status) {
     case 'delivered':

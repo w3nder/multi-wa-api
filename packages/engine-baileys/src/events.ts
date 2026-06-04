@@ -212,6 +212,12 @@ export function mapBaileysContent(message: proto.IMessage | null | undefined): I
   }
 }
 
+/**
+ * Convert a Baileys WAMessage into the library's normalized MessageEvent.
+ *
+ * @param message - The Baileys `WAMessage` envelope to map
+ * @returns A `MessageEvent` with normalized fields such as `chat`, `from`, `fromMe`, `isGroup`, `participant`, `fromAlt`, `pushName`, `timestamp`, `content`, and any quoted/mention context
+ */
 export function mapBaileysMessageEvent(message: WAMessage): MessageEvent {
   const chat = message.key.remoteJid ?? ''
   return {
@@ -231,9 +237,11 @@ export function mapBaileysMessageEvent(message: WAMessage): MessageEvent {
 }
 
 /**
- * True when an upserted message is a reaction (plain or encrypted). These are
- * delivered through the dedicated `messages.reaction` event instead, so the
- * upsert path skips them to avoid emitting a duplicate (or an `unknown`).
+ * Determine whether an upserted message is a reaction (plain or encrypted).
+ *
+ * Reactions are delivered via the separate `messages.reaction` event; this predicate is used to skip them in the upsert path to avoid duplicates.
+ *
+ * @returns `true` if the message's unwrapped content type is `reactionMessage` or `encReactionMessage`, `false` otherwise.
  */
 export function isBaileysReactionUpsert(message: WAMessage): boolean {
   if (!message.message) return false
@@ -242,9 +250,10 @@ export function isBaileysReactionUpsert(message: WAMessage): boolean {
 }
 
 /**
- * Maps baileys' `messages.reaction` payload to the same normalized reaction
- * shape the upsert path produced. `entry.key` is the reacted-to message
- * (target); `entry.reaction.key` is the envelope (who reacted).
+ * Convert a Baileys `messages.reaction` payload into a normalized `MessageEvent` for a reaction.
+ *
+ * @param entry - The raw reaction envelope where `entry.key` is the reacted-to message (target) and `entry.reaction` contains the reacting envelope and reaction details.
+ * @returns A `MessageEvent` whose `content` has `type: 'reaction'`, including `emoji` (or `null`), `target` (id, fromMe, participant), and top-level message metadata (`chat`, `from`, `fromMe`, `participant`, `fromAlt`, `timestamp`, etc.).
  */
 export function mapBaileysReaction(entry: {
   key: WAMessageKey
@@ -276,6 +285,12 @@ export function mapBaileysReaction(entry: {
   }
 }
 
+/**
+ * Map a numeric Baileys message acknowledgement code to its corresponding ack status label.
+ *
+ * @param status - Numeric acknowledgement code from Baileys
+ * @returns One of `error`, `pending`, `sent`, `delivered`, `read`, or `played`; defaults to `pending` for unknown codes
+ */
 export function mapBaileysAckStatus(status: number): MessageAckStatus {
   switch (status) {
     case 0:
