@@ -11,7 +11,7 @@ import type { Container } from '../../container'
 import { SECURITY } from '../openapi'
 import type { AppInstance } from '../types'
 
-const idParam = z.object({ id: z.string() })
+const idParam = z.object({ id: z.uuid() })
 
 function signAccess(
   app: AppInstance,

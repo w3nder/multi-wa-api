@@ -118,11 +118,21 @@ describe('api routes', () => {
   it('maps AppError not-found to 404', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: '/sessions/missing',
+      url: '/sessions/22222222-2222-4222-8222-222222222222',
       headers: { 'x-api-key': 'valid.key' }
     })
     expect(res.statusCode).toBe(404)
     expect(res.json().error.code).toBe('not_found')
+  })
+
+  it('rejects a malformed session id with 400', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/sessions/not-a-uuid',
+      headers: { 'x-api-key': 'valid.key' }
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error.code).toBe('bad_request')
   })
 
   it('rejects an invalid api key', async () => {

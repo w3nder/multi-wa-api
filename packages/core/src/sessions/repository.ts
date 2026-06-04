@@ -1,5 +1,17 @@
 import type { Pool } from '@multi-wa/db'
 import type { EngineKind, EngineStatus, Session } from '@multi-wa/types'
+import { errors } from '../lib/errors'
+
+const UNIQUE_VIOLATION = '23505'
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === UNIQUE_VIOLATION
+  )
+}
 
 interface SessionRow {
   id: string
@@ -29,13 +41,20 @@ export class SessionRepository {
   constructor(private readonly pool: Pool) {}
 
   async create(tenantId: string, name: string, engine: EngineKind): Promise<Session> {
-    const { rows } = await this.pool.query<SessionRow>(
-      `INSERT INTO sessions (tenant_id, name, engine, status)
-       VALUES ($1, $2, $3, 'created')
-       RETURNING ${COLUMNS}`,
-      [tenantId, name, engine]
-    )
-    return toSession(rows[0]!)
+    try {
+      const { rows } = await this.pool.query<SessionRow>(
+        `INSERT INTO sessions (tenant_id, name, engine, status)
+         VALUES ($1, $2, $3, 'created')
+         RETURNING ${COLUMNS}`,
+        [tenantId, name, engine]
+      )
+      return toSession(rows[0]!)
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw errors.conflict(`a session named "${name}" already exists`)
+      }
+      throw error
+    }
   }
 
   async list(tenantId: string): Promise<Session[]> {

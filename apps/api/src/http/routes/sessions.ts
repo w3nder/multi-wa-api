@@ -11,7 +11,7 @@ import { SECURITY } from '../openapi'
 import { streamEvents } from '../sse'
 import type { AppInstance } from '../types'
 
-const idParam = z.object({ id: z.string() })
+const idParam = z.object({ id: z.uuid() })
 
 const migrationResultSchema = z.object({
   session: sessionSchema,

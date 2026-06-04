@@ -41,6 +41,17 @@ suite('database integration', () => {
     expect(await repo.findById(owner.tenantId, created.id)).toBeNull()
   })
 
+  it('rejects a duplicate session name with a 409 conflict', async () => {
+    const users = new UserRepository(pool)
+    const owner = await users.createTenantWithUser('t', `dup-${Date.now()}@x.com`, 'hash')
+    const repo = new SessionRepository(pool)
+    const name = `dup-session-${Date.now()}`
+    await repo.create(owner.tenantId, name, 'baileys')
+    await expect(repo.create(owner.tenantId, name, 'zapo')).rejects.toMatchObject({
+      statusCode: 409
+    })
+  })
+
   it('runs the auth flow against real repositories', async () => {
     const auth = new AuthService(
       new UserRepository(pool),
