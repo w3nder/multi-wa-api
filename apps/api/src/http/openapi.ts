@@ -107,6 +107,15 @@ export function messageContentJson(): Record<string, unknown> {
   return schema
 }
 
+export function messageRequestExamples(): Record<string, { summary: string; value: unknown }> {
+  const to = '5511999999999@s.whatsapp.net'
+  const examples: Record<string, { summary: string; value: unknown }> = {}
+  for (const [type, content] of Object.entries(MESSAGE_CONTENT_EXAMPLES)) {
+    examples[type] = { summary: `${type} message`, value: { to, content } }
+  }
+  return examples
+}
+
 export function sendMessageBodyJson(): Record<string, unknown> {
   return {
     type: 'object',

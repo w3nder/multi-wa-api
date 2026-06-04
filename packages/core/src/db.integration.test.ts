@@ -1,11 +1,7 @@
 import pg from 'pg'
 import { runMigrations } from '../../db/src/migrate'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {
-  ApiKeyRepository,
-  RefreshTokenRepository,
-  UserRepository
-} from './auth/repository'
+import { ApiKeyRepository, RefreshTokenRepository, UserRepository } from './auth/repository'
 import { AuthService } from './auth/service'
 import { SessionRepository } from './sessions/repository'
 import { WebhookRepository } from './webhooks/repository'
@@ -69,7 +65,11 @@ suite('database integration', () => {
     const users = new UserRepository(pool)
     const owner = await users.createTenantWithUser('t', `w-${Date.now()}@x.com`, 'hash')
     const repo = new WebhookRepository(pool)
-    await repo.create(owner.tenantId, { url: 'https://x/h', events: ['message'] }, 'secret-secret-1')
+    await repo.create(
+      owner.tenantId,
+      { url: 'https://x/h', events: ['message'] },
+      'secret-secret-1'
+    )
     const targets = await repo.listActiveTargets(owner.tenantId)
     expect(targets).toHaveLength(1)
     expect(targets[0]!.events).toContain('message')

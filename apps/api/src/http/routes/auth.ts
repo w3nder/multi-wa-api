@@ -56,7 +56,11 @@ export function authRoutes(app: FastifyInstance, container: Container): void {
       const input = parse(refreshInputSchema, request.body)
       const rotation = await container.authService.rotateRefreshToken(input.refreshToken)
       const accessToken = signAccess(app, container, rotation.userId, rotation.tenantId)
-      return { accessToken, refreshToken: rotation.token, expiresIn: container.config.JWT_ACCESS_TTL }
+      return {
+        accessToken,
+        refreshToken: rotation.token,
+        expiresIn: container.config.JWT_ACCESS_TTL
+      }
     }
   )
 
@@ -75,7 +79,10 @@ export function authRoutes(app: FastifyInstance, container: Container): void {
     },
     async (request, reply) => {
       const input = parse(createApiKeyInputSchema, request.body)
-      const apiKey = await container.authService.createApiKey(request.principal.tenantId, input.name)
+      const apiKey = await container.authService.createApiKey(
+        request.principal.tenantId,
+        input.name
+      )
       return reply.status(201).send(apiKey)
     }
   )

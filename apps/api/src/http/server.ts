@@ -9,6 +9,7 @@ import Fastify, { type FastifyInstance } from 'fastify'
 import type { Container } from '../container'
 import { registerAuth } from './auth'
 import { errorHandler } from './error'
+import { messageRequestExamples } from './openapi'
 import { authRoutes } from './routes/auth'
 import { healthRoutes } from './routes/health'
 import { messageRoutes } from './routes/messages'
@@ -35,6 +36,19 @@ export async function buildApp(container: Container): Promise<FastifyInstance> {
           bearer: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }
         }
       }
+    },
+    transformObject: (input) => {
+      const openapiObject = (input as { openapiObject?: unknown }).openapiObject ?? input
+      const spec = openapiObject as {
+        paths?: Record<
+          string,
+          Record<string, { requestBody?: { content?: Record<string, { examples?: unknown }> } }>
+        >
+      }
+      const media =
+        spec.paths?.['/sessions/{id}/messages']?.post?.requestBody?.content?.['application/json']
+      if (media) media.examples = messageRequestExamples()
+      return openapiObject as never
     }
   })
   await app.register(swaggerUi, { routePrefix: '/docs' })
