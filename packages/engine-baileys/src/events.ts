@@ -230,6 +230,52 @@ export function mapBaileysMessageEvent(message: WAMessage): MessageEvent {
   }
 }
 
+/**
+ * True when an upserted message is a reaction (plain or encrypted). These are
+ * delivered through the dedicated `messages.reaction` event instead, so the
+ * upsert path skips them to avoid emitting a duplicate (or an `unknown`).
+ */
+export function isBaileysReactionUpsert(message: WAMessage): boolean {
+  if (!message.message) return false
+  const type = getContentType(unwrap(message.message))
+  return type === 'reactionMessage' || type === 'encReactionMessage'
+}
+
+/**
+ * Maps baileys' `messages.reaction` payload to the same normalized reaction
+ * shape the upsert path produced. `entry.key` is the reacted-to message
+ * (target); `entry.reaction.key` is the envelope (who reacted).
+ */
+export function mapBaileysReaction(entry: {
+  key: WAMessageKey
+  reaction: proto.IReaction
+}): MessageEvent {
+  const target = entry.key
+  const envelope = (entry.reaction.key ?? {}) as WAMessageKey
+  const chat = envelope.remoteJid ?? ''
+  const senderMs = toNumber(entry.reaction.senderTimestampMs)
+  return {
+    type: 'message',
+    id: envelope.id ?? undefined,
+    chat,
+    from: envelope.participant ?? chat,
+    fromMe: Boolean(envelope.fromMe),
+    isGroup: isGroupJid(chat),
+    participant: envelope.participant ?? undefined,
+    fromAlt: envelope.participantAlt ?? envelope.remoteJidAlt ?? undefined,
+    timestamp: senderMs === undefined ? undefined : Math.floor(senderMs / 1000),
+    content: {
+      type: 'reaction',
+      emoji: entry.reaction.text ?? null,
+      target: {
+        id: target?.id ?? '',
+        fromMe: target?.fromMe ?? undefined,
+        participant: target?.participant ?? undefined
+      }
+    }
+  }
+}
+
 export function mapBaileysAckStatus(status: number): MessageAckStatus {
   switch (status) {
     case 0:

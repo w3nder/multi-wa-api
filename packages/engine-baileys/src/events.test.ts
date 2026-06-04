@@ -1,11 +1,14 @@
+import type { WAMessageKey } from 'baileys'
 import { describe, expect, it } from 'vitest'
 import {
+  isBaileysReactionUpsert,
   mapBaileysAck,
   mapBaileysAckStatus,
   mapBaileysContent,
   mapBaileysContext,
   mapBaileysMessageEvent,
   mapBaileysPresence,
+  mapBaileysReaction,
   mapBaileysReceipt
 } from './events'
 
@@ -323,6 +326,62 @@ describe('mapBaileysContext', () => {
     expect(
       mapBaileysContext({ extendedTextMessage: { contextInfo: { participant: 'x' } } })
     ).toEqual({})
+  })
+})
+
+describe('isBaileysReactionUpsert', () => {
+  it('detects plain and encrypted reactions, ignores other content', () => {
+    expect(isBaileysReactionUpsert({ key: {}, message: { reactionMessage: { text: '❤️' } } })).toBe(
+      true
+    )
+    expect(isBaileysReactionUpsert({ key: {}, message: { encReactionMessage: {} } })).toBe(true)
+    expect(isBaileysReactionUpsert({ key: {}, message: { conversation: 'oi' } })).toBe(false)
+    expect(isBaileysReactionUpsert({ key: {} })).toBe(false)
+  })
+})
+
+describe('mapBaileysReaction', () => {
+  it('maps a group reaction, reproducing the upsert shape (envelope vs target)', () => {
+    const envelope = {
+      remoteJid: '123@g.us',
+      id: 'REACT1',
+      fromMe: false,
+      participant: '55@lid',
+      participantAlt: '55@s.whatsapp.net'
+    } as WAMessageKey
+    const event = mapBaileysReaction({
+      key: { remoteJid: '123@g.us', id: 'TARGET1', fromMe: true, participant: '99@s.whatsapp.net' },
+      reaction: { text: '❤️', senderTimestampMs: 1730000000000, key: envelope }
+    })
+    expect(event).toEqual({
+      type: 'message',
+      id: 'REACT1',
+      chat: '123@g.us',
+      from: '55@lid',
+      fromMe: false,
+      isGroup: true,
+      participant: '55@lid',
+      fromAlt: '55@s.whatsapp.net',
+      timestamp: 1730000000,
+      content: {
+        type: 'reaction',
+        emoji: '❤️',
+        target: { id: 'TARGET1', fromMe: true, participant: '99@s.whatsapp.net' }
+      }
+    })
+  })
+
+  it('maps a reaction removal (no text) to a null emoji', () => {
+    const event = mapBaileysReaction({
+      key: { remoteJid: 'c@s.whatsapp.net', id: 'T2' },
+      reaction: { key: { remoteJid: 'c@s.whatsapp.net', id: 'R2', fromMe: true } }
+    })
+    expect(event.fromMe).toBe(true)
+    expect(event.content).toEqual({
+      type: 'reaction',
+      emoji: null,
+      target: { id: 'T2', fromMe: undefined, participant: undefined }
+    })
   })
 })
 

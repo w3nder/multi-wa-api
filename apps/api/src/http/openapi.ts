@@ -331,6 +331,19 @@ const WEBHOOK_DELIVERY_EXAMPLES: Record<string, OpenAPIV3.ExampleObject> = {
       }
     }
   },
+  message_reaction_group: {
+    summary: 'message event (reaction, group)',
+    value: {
+      type: 'message',
+      id: '3EB0...',
+      chat: '120363000000000000@g.us',
+      from: '5511888888888@s.whatsapp.net',
+      fromMe: false,
+      isGroup: true,
+      participant: '5511888888888@s.whatsapp.net',
+      content: { type: 'reaction', emoji: '❤️', target: { id: '3EA9...', fromMe: true } }
+    }
+  },
   ack: {
     summary: 'ack event (read)',
     value: {

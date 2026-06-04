@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type {
+  WaIncomingAddonEvent,
   WaIncomingChatstateEvent,
   WaIncomingMessageEvent,
   WaIncomingPresenceEvent,
@@ -11,6 +12,7 @@ import {
   mapZapoContext,
   mapZapoMessageEvent,
   mapZapoPresence,
+  mapZapoReaction,
   mapZapoReceipt
 } from './events'
 
@@ -325,6 +327,69 @@ describe('mapZapoContext', () => {
     expect(mapZapoContext({ extendedTextMessage: { contextInfo: { participant: 'x' } } })).toEqual(
       {}
     )
+  })
+})
+
+describe('mapZapoReaction', () => {
+  const addonKey = {
+    remoteJid: '123@g.us',
+    id: 'R1',
+    fromMe: false,
+    participant: '55@lid',
+    participantAlt: '55@s.whatsapp.net',
+    isGroup: true,
+    isBroadcast: false,
+    isNewsletter: false,
+    senderDevice: 0
+  }
+
+  it('maps a reaction addon to the normalized reaction shape', () => {
+    const event: WaIncomingAddonEvent = {
+      rawNode,
+      key: addonKey,
+      kind: 'reaction',
+      targetMessageId: 'TARGET1',
+      decrypted: {
+        kind: 'reaction',
+        reaction: {
+          text: '❤️',
+          key: {
+            remoteJid: '123@g.us',
+            id: 'TARGET1',
+            fromMe: true,
+            participant: '99@s.whatsapp.net'
+          }
+        }
+      },
+      raw: {}
+    }
+    expect(mapZapoReaction(event)).toEqual({
+      type: 'message',
+      id: 'R1',
+      chat: '123@g.us',
+      from: '55@lid',
+      fromMe: false,
+      isGroup: true,
+      participant: '55@lid',
+      fromAlt: '55@s.whatsapp.net',
+      content: {
+        type: 'reaction',
+        emoji: '❤️',
+        target: { id: 'TARGET1', fromMe: true, participant: '99@s.whatsapp.net' }
+      }
+    })
+  })
+
+  it('returns null for non-reaction addons', () => {
+    const event: WaIncomingAddonEvent = {
+      rawNode,
+      key: addonKey,
+      kind: 'message_edit',
+      targetMessageId: 'TARGET1',
+      decrypted: { kind: 'message_edit', message: { conversation: 'edited' } },
+      raw: {}
+    }
+    expect(mapZapoReaction(event)).toBeNull()
   })
 })
 

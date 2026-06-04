@@ -4,7 +4,13 @@ import type { EngineEvent, MediaRef, MessageContent, SendMessageResult } from '@
 import { downloadMediaMessage, WaClient } from 'zapo-js'
 import type { PgCleanupPoller } from '@zapo-js/store-postgres'
 import { buildZapoStore, type ZapoStoreBundle } from './store'
-import { mapZapoChatstate, mapZapoMessageEvent, mapZapoPresence, mapZapoReceipt } from './events'
+import {
+  mapZapoChatstate,
+  mapZapoMessageEvent,
+  mapZapoPresence,
+  mapZapoReaction,
+  mapZapoReceipt
+} from './events'
 import { createZapoGroups } from './groups'
 import { toZapoLogger } from './logger'
 import { toZapoContent } from './translate'
@@ -76,6 +82,11 @@ export class ZapoEngine implements WaEngine {
 
     client.on('message', (event) => {
       this.emit(mapZapoMessageEvent(event))
+    })
+
+    client.on('message_addon', (event) => {
+      const reaction = mapZapoReaction(event)
+      if (reaction) this.emit(reaction)
     })
 
     client.on('receipt', (event) => {

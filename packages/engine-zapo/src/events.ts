@@ -9,6 +9,7 @@ import type {
 } from '@multi-wa/types'
 import {
   getContentType,
+  type WaIncomingAddonEvent,
   type WaIncomingChatstateEvent,
   type WaIncomingMessageEvent,
   type WaIncomingPresenceEvent,
@@ -241,6 +242,38 @@ export function mapZapoMessageEvent(event: WaIncomingMessageEvent): MessageEvent
     timestamp: event.timestampSeconds ?? undefined,
     content: mapZapoContent(event.message),
     ...mapZapoContext(event.message)
+  }
+}
+
+/**
+ * Maps a decrypted reaction addon (`message_addon` with `kind: 'reaction'`) to
+ * the same normalized reaction shape as a message event. `event.key` is the
+ * envelope (who reacted); the reaction's `key`/`targetMessageId` is the target.
+ * Returns null for non-reaction addons (poll votes, edits, ...).
+ */
+export function mapZapoReaction(event: WaIncomingAddonEvent): MessageEvent | null {
+  const addon = event.decrypted
+  if (!addon || addon.kind !== 'reaction') return null
+  const reaction = addon.reaction
+  const chat = event.key.remoteJid ?? ''
+  return {
+    type: 'message',
+    id: event.key.id ?? undefined,
+    chat,
+    from: event.key.participant ?? chat,
+    fromMe: Boolean(event.key.fromMe),
+    isGroup: event.key.isGroup,
+    participant: event.key.participant ?? undefined,
+    fromAlt: event.key.participantAlt ?? event.key.remoteJidAlt ?? undefined,
+    content: {
+      type: 'reaction',
+      emoji: reaction.text ?? null,
+      target: {
+        id: event.targetMessageId,
+        fromMe: reaction.key?.fromMe ?? undefined,
+        participant: reaction.key?.participant ?? undefined
+      }
+    }
   }
 }
 
