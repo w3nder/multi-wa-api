@@ -149,3 +149,68 @@ describe('engine event schema', () => {
     expect(engineEventSchema.safeParse({ type: 'connection', status: 'bogus' }).success).toBe(false)
   })
 })
+
+describe('issue #7 event schemas', () => {
+  it('parses a call event', () => {
+    expect(
+      engineEventSchema.safeParse({ type: 'call', status: 'offer', from: 'u@s.whatsapp.net', isGroup: false })
+        .success
+    ).toBe(true)
+    expect(
+      engineEventSchema.safeParse({ type: 'call', status: 'missed', from: 'u', isGroup: false }).success
+    ).toBe(false)
+  })
+
+  it('parses a group_participants event', () => {
+    expect(
+      engineEventSchema.safeParse({
+        type: 'group_participants',
+        chat: 'g@g.us',
+        action: 'add',
+        participants: ['a@s.whatsapp.net']
+      }).success
+    ).toBe(true)
+    expect(
+      engineEventSchema.safeParse({
+        type: 'group_participants',
+        chat: 'g@g.us',
+        action: 'modify',
+        participants: []
+      }).success
+    ).toBe(false)
+  })
+
+  it('parses a partial group_update event', () => {
+    expect(engineEventSchema.safeParse({ type: 'group_update', chat: 'g@g.us', subject: 'New' }).success).toBe(
+      true
+    )
+    expect(engineEventSchema.safeParse({ type: 'group_update', chat: 'g@g.us', announce: true }).success).toBe(
+      true
+    )
+  })
+
+  it('parses a membership_request event', () => {
+    expect(
+      engineEventSchema.safeParse({
+        type: 'membership_request',
+        chat: 'g@g.us',
+        action: 'created',
+        participant: 'a@s.whatsapp.net'
+      }).success
+    ).toBe(true)
+    expect(
+      engineEventSchema.safeParse({
+        type: 'membership_request',
+        chat: 'g@g.us',
+        action: 'approved',
+        participant: 'a'
+      }).success
+    ).toBe(false)
+  })
+
+  it('accepts the new webhook event types', () => {
+    for (const event of ['call', 'group_participants', 'group_update', 'membership_request']) {
+      expect(createWebhookInputSchema.safeParse({ url: 'https://x/hook', events: [event] }).success).toBe(true)
+    }
+  })
+})
