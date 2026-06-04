@@ -8,5 +8,6 @@ export default defineConfig({
   dts: false,
   clean: true,
   sourcemap: true,
-  skipNodeModulesBundle: true
+  tsconfig: '../../tsconfig.build.json',
+  external: [/^@multi-wa\//]
 })

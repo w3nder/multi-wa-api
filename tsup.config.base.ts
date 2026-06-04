@@ -8,5 +8,6 @@ export const baseConfig = defineConfig({
   dts: true,
   clean: true,
   sourcemap: true,
-  skipNodeModulesBundle: true
+  tsconfig: '../../tsconfig.build.json',
+  external: [/^@multi-wa\//]
 })
