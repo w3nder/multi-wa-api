@@ -1,9 +1,15 @@
 import type {
   AckEvent,
+  CallEvent,
+  CallStatus,
+  EngineEvent,
+  GroupUpdateEvent,
   InboundContent,
   InboundMedia,
+  MembershipRequestAction,
   MessageAckStatus,
   MessageEvent,
+  ParticipantAction,
   PresenceEvent,
   QuotedMessage
 } from '@multi-wa/types'
@@ -324,4 +330,115 @@ export function mapZapoChatstate(event: WaIncomingChatstateEvent): PresenceEvent
     from: event.participantJid ?? undefined,
     status
   }
+}
+
+type ZapoCallInput = {
+  type?: string | null
+  callId?: string | null
+  callerPnJid?: string | null
+  callCreatorJid?: string | null
+  groupJid?: string | null
+  isVideo?: boolean | null
+  timestampSeconds?: number | null
+}
+
+const CALL_STATUSES = new Set(['offer', 'accept', 'reject', 'terminate'])
+
+export function mapZapoCall(event: ZapoCallInput): CallEvent | null {
+  if (!event.type || !CALL_STATUSES.has(event.type)) return null
+  const from = event.callerPnJid ?? event.callCreatorJid
+  if (!from) return null
+  return {
+    type: 'call',
+    status: event.type as CallStatus,
+    id: event.callId ?? undefined,
+    from,
+    isGroup: Boolean(event.groupJid),
+    groupJid: event.groupJid ?? undefined,
+    isVideo: event.isVideo ?? undefined,
+    timestamp: event.timestampSeconds ?? undefined
+  }
+}
+
+type ZapoGroupMember = { jid?: string | null; phoneJid?: string | null } | null
+
+type ZapoGroupInput = {
+  action?: string | null
+  groupJid?: string | null
+  authorJid?: string | null
+  timestampSeconds?: number | null
+  participants?: readonly ZapoGroupMember[] | null
+  membershipRequests?: readonly ZapoGroupMember[] | null
+  subject?: string | null
+  description?: string | null
+  expirationSeconds?: number | null
+  enabled?: boolean | null
+}
+
+const ZAPO_PARTICIPANT_ACTIONS = new Set(['add', 'remove', 'promote', 'demote'])
+const ZAPO_UPDATE_ACTIONS = new Set(['subject', 'description', 'announce', 'restrict', 'ephemeral'])
+
+function jidsOf(members: readonly ZapoGroupMember[] | null | undefined): string[] {
+  return (members ?? [])
+    .map((m) => m?.jid ?? m?.phoneJid)
+    .filter((jid): jid is string => Boolean(jid))
+}
+
+export function mapZapoGroup(event: ZapoGroupInput): EngineEvent[] {
+  const chat = event.groupJid
+  if (!chat || !event.action) return []
+  const author = event.authorJid ?? undefined
+  const timestamp = event.timestampSeconds ?? undefined
+
+  if (ZAPO_PARTICIPANT_ACTIONS.has(event.action)) {
+    const participants = jidsOf(event.participants)
+    if (participants.length === 0) return []
+    return [
+      {
+        type: 'group_participants',
+        chat,
+        action: event.action as ParticipantAction,
+        participants,
+        author,
+        timestamp
+      }
+    ]
+  }
+
+  if (ZAPO_UPDATE_ACTIONS.has(event.action)) {
+    const update: GroupUpdateEvent = { type: 'group_update', chat }
+    if (author) update.author = author
+    if (timestamp !== undefined) update.timestamp = timestamp
+    if (event.action === 'subject' && event.subject != null) update.subject = event.subject
+    else if (event.action === 'description' && event.description != null) {
+      update.description = event.description
+    } else if (event.action === 'announce') update.announce = event.enabled ?? false
+    else if (event.action === 'restrict') update.restrict = event.enabled ?? false
+    else if (event.action === 'ephemeral') update.ephemeralSeconds = event.expirationSeconds ?? 0
+    const hasField =
+      update.subject !== undefined ||
+      update.description !== undefined ||
+      update.announce !== undefined ||
+      update.restrict !== undefined ||
+      update.ephemeralSeconds !== undefined
+    return hasField ? [update] : []
+  }
+
+  if (
+    event.action === 'created_membership_requests' ||
+    event.action === 'revoked_membership_requests'
+  ) {
+    const action: MembershipRequestAction =
+      event.action === 'created_membership_requests' ? 'created' : 'revoked'
+    return jidsOf(event.membershipRequests).map((participant) => ({
+      type: 'membership_request',
+      chat,
+      action,
+      participant,
+      author,
+      timestamp
+    }))
+  }
+
+  return []
 }
