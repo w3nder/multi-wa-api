@@ -16,6 +16,18 @@ const session = {
   updatedAt: '2026-01-01T00:00:00.000Z'
 }
 
+const group = {
+  id: '120363047212563241@g.us',
+  subject: 'Test group',
+  owner: null,
+  description: null,
+  createdAt: null,
+  announce: false,
+  restrict: false,
+  size: 1,
+  participants: [{ id: '5511@s.whatsapp.net', admin: 'superadmin' as const }]
+}
+
 function fakeContainer(): Container {
   return {
     config: {
@@ -52,6 +64,11 @@ function fakeContainer(): Container {
       list: async () => [session]
     } as never,
     messagingService: {} as never,
+    groupService: {
+      create: async () => group,
+      metadata: async () => group,
+      updateParticipants: async () => [{ id: '5511@s.whatsapp.net', status: 200 }]
+    } as never,
     webhookService: {} as never,
     manager: {} as never
   }
@@ -142,5 +159,27 @@ describe('api routes', () => {
       headers: { 'x-api-key': 'wrong.key' }
     })
     expect(res.statusCode).toBe(401)
+  })
+
+  it('returns normalized group metadata', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/sessions/${session.id}/groups/${encodeURIComponent(group.id)}`,
+      headers: { 'x-api-key': 'valid.key' }
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.id).toBe(group.id)
+    expect(body.participants[0].admin).toBe('superadmin')
+  })
+
+  it('rejects an invalid participant action with 400', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: `/sessions/${session.id}/groups/${encodeURIComponent(group.id)}/participants`,
+      headers: { 'x-api-key': 'valid.key' },
+      payload: { action: 'banana', participants: ['5511'] }
+    })
+    expect(res.statusCode).toBe(400)
   })
 })

@@ -3,6 +3,7 @@ import {
   ApiKeyRepository,
   AuthService,
   getLogger,
+  GroupService,
   MessagingService,
   MigrationService,
   RefreshTokenRepository,
@@ -28,6 +29,7 @@ export interface Container {
   authService: AuthService
   sessionService: SessionService
   messagingService: MessagingService
+  groupService: GroupService
   webhookService: WebhookService
   manager: SessionManager
 }
@@ -78,6 +80,7 @@ export function createContainer(): Container {
   })
 
   const messagingService = new MessagingService(manager)
+  const groupService = new GroupService(manager)
   const webhookService = new WebhookService(webhookRepository, dispatcher)
   const authService = new AuthService(
     userRepository,
@@ -93,6 +96,7 @@ export function createContainer(): Container {
     authService,
     sessionService,
     messagingService,
+    groupService,
     webhookService,
     manager
   }

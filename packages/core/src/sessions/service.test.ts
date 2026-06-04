@@ -2,7 +2,7 @@ import type { EngineEvent, EngineKind, Session } from '@multi-wa/types'
 import { pino } from 'pino'
 import type { Logger } from '../lib/logger'
 import { describe, expect, it } from 'vitest'
-import type { EngineOptions, EngineRegistry, WaEngine } from '../engine/types'
+import type { EngineOptions, EngineRegistry, GroupOperations, WaEngine } from '../engine/types'
 import { AppError } from '../lib/errors'
 import type { MigrationService } from '../migration/service'
 import { SessionManager } from './manager'
@@ -13,6 +13,7 @@ const logger = pino({ level: 'silent' }) as unknown as Logger
 
 class FakeEngine implements WaEngine {
   readonly kind: EngineKind
+  readonly groups = {} as GroupOperations
   handler: ((event: EngineEvent) => void) | null = null
   constructor(
     readonly options: EngineOptions,

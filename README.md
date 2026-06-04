@@ -199,6 +199,35 @@ union normalizado e **independente de engine** (`content.type`). `media` aceita
 
 No Swagger UI há um seletor de exemplo por tipo no "Example Value".
 
+## Grupos
+
+Operações de grupo **normalizadas** (payload e resposta iguais nas duas engines — o
+cliente troca de engine sem mudar a integração). Todas sob `/sessions/:id/groups`:
+
+| Método & rota                                      | Descrição                                                       |
+| -------------------------------------------------- | --------------------------------------------------------------- |
+| `POST /sessions/:id/groups`                        | Criar grupo `{ subject, participants? }` → metadata             |
+| `GET /sessions/:id/groups/:groupId`                | Metadata do grupo                                               |
+| `PATCH /sessions/:id/groups/:groupId/subject`      | Alterar nome `{ subject }`                                      |
+| `PATCH /sessions/:id/groups/:groupId/description`  | Alterar descrição `{ description }`                             |
+| `POST /sessions/:id/groups/:groupId/participants`  | `{ action: add\|remove\|promote\|demote, participants }`        |
+| `PATCH /sessions/:id/groups/:groupId/settings`     | `{ setting: announcement\|not_announcement\|locked\|unlocked }` |
+| `GET /sessions/:id/groups/:groupId/invite`         | Código de convite                                               |
+| `POST /sessions/:id/groups/:groupId/invite/revoke` | Revoga e gera novo código                                       |
+| `GET /sessions/:id/groups/invite/:code`            | Preview do grupo via convite                                    |
+| `POST /sessions/:id/groups/join`                   | Entrar via convite `{ invite }` → `{ id }`                      |
+| `POST /sessions/:id/groups/:groupId/leave`         | Sair do grupo                                                   |
+
+`participants` aceita número puro (`556195514650`) ou jid. Operações exigem sessão
+conectada (senão `409`).
+
+```ts
+const g = await wa.groups.create(s.id, { subject: 'Equipe', participants: ['5511...'] })
+await wa.groups.promote(s.id, g.id, ['5511...'])
+await wa.groups.updateSettings(s.id, g.id, 'announcement')
+const { code } = await wa.groups.inviteCode(s.id, g.id)
+```
+
 ## Eventos & Webhooks
 
 As engines emitem eventos normalizados, entregues por **SSE**

@@ -18,6 +18,7 @@ import { registerAuth } from './auth'
 import { errorHandler } from './error'
 import { decorateOpenApi } from './openapi'
 import { authRoutes } from './routes/auth'
+import { groupRoutes } from './routes/groups'
 import { healthRoutes } from './routes/health'
 import { messageRoutes } from './routes/messages'
 import { sessionRoutes } from './routes/sessions'
@@ -87,6 +88,7 @@ export async function buildApp(container: Container): Promise<FastifyInstance> {
       scoped.addHook('preHandler', scoped.authenticate)
       sessionRoutes(scoped, container)
       messageRoutes(scoped, container)
+      groupRoutes(scoped, container)
     },
     { prefix: '/sessions' }
   )

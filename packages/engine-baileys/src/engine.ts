@@ -1,4 +1,4 @@
-import type { EngineOptions, WaEngine } from '@multi-wa/core'
+import { errors, type EngineOptions, type WaEngine } from '@multi-wa/core'
 import type { EngineEvent, MessageContent, SendMessageResult } from '@multi-wa/types'
 import makeWASocket, {
   DisconnectReason,
@@ -8,6 +8,7 @@ import makeWASocket, {
   type WASocket
 } from 'baileys'
 import { clearBaileys, usePostgresAuthState } from './auth-state'
+import { createBaileysGroups } from './groups'
 import { toBaileysLogger } from './logger'
 import { toBaileysContent } from './translate'
 
@@ -29,11 +30,18 @@ function extractText(message: WAMessage): string | undefined {
 
 export class BaileysEngine implements WaEngine {
   readonly kind = 'baileys' as const
+  readonly groups = createBaileysGroups(() => this.requireSocket())
   private sock: WASocket | null = null
+  private ready = false
   private handler: ((event: EngineEvent) => void) | null = null
   private stopping = false
 
   constructor(private readonly options: EngineOptions) {}
+
+  private requireSocket(): WASocket {
+    if (!this.sock || !this.ready) throw errors.conflict('session is not connected')
+    return this.sock
+  }
 
   onEvent(handler: (event: EngineEvent) => void): void {
     this.handler = handler
@@ -110,12 +118,14 @@ export class BaileysEngine implements WaEngine {
     }
 
     if (update.connection === 'open') {
+      this.ready = true
       const meJid = this.sock?.user?.id ? jidNormalizedUser(this.sock.user.id) : undefined
       this.options.logger.info({ meJid, name: this.sock?.user?.name }, 'connected')
       this.emit({ type: 'status', status: 'connected', meJid })
     }
 
     if (update.connection === 'close') {
+      this.ready = false
       const statusCode = (update.lastDisconnect?.error as { output?: { statusCode?: number } })
         ?.output?.statusCode
 
@@ -138,12 +148,14 @@ export class BaileysEngine implements WaEngine {
 
   async stop(): Promise<void> {
     this.stopping = true
+    this.ready = false
     this.sock?.end(undefined)
     this.sock = null
   }
 
   async logout(): Promise<void> {
     this.stopping = true
+    this.ready = false
     try {
       await this.sock?.logout()
     } finally {
@@ -154,8 +166,7 @@ export class BaileysEngine implements WaEngine {
   }
 
   async send(to: string, content: MessageContent): Promise<SendMessageResult> {
-    if (!this.sock) throw new Error('baileys socket is not connected')
-    const result = await this.sock.sendMessage(to, toBaileysContent(content))
+    const result = await this.requireSocket().sendMessage(to, toBaileysContent(content))
     return { id: result?.key.id ?? undefined }
   }
 }

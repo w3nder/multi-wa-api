@@ -1,12 +1,19 @@
 import type {
   ApiKey,
   ApiKeyCreated,
+  CreateGroupInput,
   CreateSessionInput,
   CreateWebhookInput,
   EngineEvent,
   EngineKind,
+  GroupIdResult,
+  GroupMetadata,
+  GroupSetting,
+  InviteCodeResult,
   MediaSource,
   MessageContent,
+  ParticipantAction,
+  ParticipantResult,
   Qr,
   SendMessageInput,
   SendMessageResult,
@@ -95,7 +102,7 @@ export function createClient(options: ClientOptions) {
   const send = (sessionId: string, input: SendMessageInput): Promise<SendMessageResult> =>
     call('POST', `/sessions/${sessionId}/messages`, input)
 
-  return {
+  const client = {
     auth: {
       login: (email: string, password: string): Promise<TokenPair> =>
         call('POST', '/auth/login', { email, password }),
@@ -159,6 +166,52 @@ export function createClient(options: ClientOptions) {
       sendContact: (sessionId: string, to: string, fullName: string, phone: string) =>
         send(sessionId, { to, content: { type: 'contact', fullName, phone } })
     },
+    groups: {
+      create: (sessionId: string, input: CreateGroupInput): Promise<GroupMetadata> =>
+        call('POST', `/sessions/${sessionId}/groups`, input),
+      get: (sessionId: string, groupId: string): Promise<GroupMetadata> =>
+        call('GET', `/sessions/${sessionId}/groups/${encodeURIComponent(groupId)}`),
+      updateSubject: (sessionId: string, groupId: string, subject: string): Promise<void> =>
+        call('PATCH', `/sessions/${sessionId}/groups/${encodeURIComponent(groupId)}/subject`, {
+          subject
+        }),
+      updateDescription: (sessionId: string, groupId: string, description: string): Promise<void> =>
+        call('PATCH', `/sessions/${sessionId}/groups/${encodeURIComponent(groupId)}/description`, {
+          description
+        }),
+      updateParticipants: (
+        sessionId: string,
+        groupId: string,
+        action: ParticipantAction,
+        participants: string[]
+      ): Promise<ParticipantResult[]> =>
+        call('POST', `/sessions/${sessionId}/groups/${encodeURIComponent(groupId)}/participants`, {
+          action,
+          participants
+        }),
+      addParticipants: (sessionId: string, groupId: string, participants: string[]) =>
+        client.groups.updateParticipants(sessionId, groupId, 'add', participants),
+      removeParticipants: (sessionId: string, groupId: string, participants: string[]) =>
+        client.groups.updateParticipants(sessionId, groupId, 'remove', participants),
+      promote: (sessionId: string, groupId: string, participants: string[]) =>
+        client.groups.updateParticipants(sessionId, groupId, 'promote', participants),
+      demote: (sessionId: string, groupId: string, participants: string[]) =>
+        client.groups.updateParticipants(sessionId, groupId, 'demote', participants),
+      updateSettings: (sessionId: string, groupId: string, setting: GroupSetting): Promise<void> =>
+        call('PATCH', `/sessions/${sessionId}/groups/${encodeURIComponent(groupId)}/settings`, {
+          setting
+        }),
+      inviteCode: (sessionId: string, groupId: string): Promise<InviteCodeResult> =>
+        call('GET', `/sessions/${sessionId}/groups/${encodeURIComponent(groupId)}/invite`),
+      revokeInvite: (sessionId: string, groupId: string): Promise<InviteCodeResult> =>
+        call('POST', `/sessions/${sessionId}/groups/${encodeURIComponent(groupId)}/invite/revoke`),
+      inviteInfo: (sessionId: string, code: string): Promise<GroupMetadata> =>
+        call('GET', `/sessions/${sessionId}/groups/invite/${encodeURIComponent(code)}`),
+      join: (sessionId: string, invite: string): Promise<GroupIdResult> =>
+        call('POST', `/sessions/${sessionId}/groups/join`, { invite }),
+      leave: (sessionId: string, groupId: string): Promise<void> =>
+        call('POST', `/sessions/${sessionId}/groups/${encodeURIComponent(groupId)}/leave`)
+    },
     webhooks: {
       create: (input: CreateWebhookInput): Promise<WebhookCreated> =>
         call('POST', '/webhooks', input),
@@ -166,6 +219,8 @@ export function createClient(options: ClientOptions) {
       remove: (id: string): Promise<void> => call('DELETE', `/webhooks/${id}`)
     }
   }
+
+  return client
 }
 
 export type WaClient = ReturnType<typeof createClient>

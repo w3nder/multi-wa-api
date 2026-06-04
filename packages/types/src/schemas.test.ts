@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
   createApiKeyInputSchema,
+  createGroupInputSchema,
   createSessionInputSchema,
   createWebhookInputSchema,
   engineEventSchema,
+  groupSettingSchema,
   loginInputSchema,
   messageContentSchema,
   migrateSessionInputSchema,
-  sendMessageInputSchema
+  sendMessageInputSchema,
+  updateParticipantsInputSchema
 } from './index'
 
 describe('message schemas', () => {
@@ -84,6 +87,34 @@ describe('auth and webhook schemas', () => {
     expect(createWebhookInputSchema.safeParse({ url: 'https://x/hook', events: [] }).success).toBe(
       false
     )
+  })
+})
+
+describe('group schemas', () => {
+  it('validates create group input', () => {
+    expect(createGroupInputSchema.safeParse({ subject: 'g', participants: ['5511'] }).success).toBe(
+      true
+    )
+    expect(createGroupInputSchema.safeParse({ subject: '' }).success).toBe(false)
+  })
+
+  it('validates participant action enum and non-empty list', () => {
+    expect(
+      updateParticipantsInputSchema.safeParse({ action: 'add', participants: ['5511'] }).success
+    ).toBe(true)
+    expect(
+      updateParticipantsInputSchema.safeParse({ action: 'banana', participants: ['5511'] }).success
+    ).toBe(false)
+    expect(
+      updateParticipantsInputSchema.safeParse({ action: 'add', participants: [] }).success
+    ).toBe(false)
+  })
+
+  it('validates the group setting enum', () => {
+    for (const setting of ['announcement', 'not_announcement', 'locked', 'unlocked']) {
+      expect(groupSettingSchema.safeParse(setting).success).toBe(true)
+    }
+    expect(groupSettingSchema.safeParse('open').success).toBe(false)
   })
 })
 

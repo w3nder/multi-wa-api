@@ -9,6 +9,7 @@ export {
   constantTimeEqual,
   hmacSign
 } from './lib/crypto'
+export { toUserJid } from './lib/jid'
 
 export type {
   EngineOptions,
@@ -16,7 +17,8 @@ export type {
   EngineFactory,
   EngineRegistry,
   EngineSnapshotAdapter,
-  SnapshotRegistry
+  SnapshotRegistry,
+  GroupOperations
 } from './engine/types'
 
 export { SessionRepository } from './sessions/repository'
@@ -26,6 +28,8 @@ export { SessionService } from './sessions/service'
 export type { SessionServiceDeps, MigrationResult } from './sessions/service'
 
 export { MessagingService } from './messaging/service'
+
+export { GroupService } from './groups/service'
 
 export { MigrationService } from './migration/service'
 export type { MigrationLoss } from './migration/service'
