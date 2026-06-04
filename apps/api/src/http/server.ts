@@ -47,7 +47,10 @@ export async function buildApp(container: Container): Promise<FastifyInstance> {
   app.setSerializerCompiler(serializerCompiler)
 
   await app.register(helmet, { contentSecurityPolicy: false })
-  await app.register(cors, { origin: parseCorsOrigins(container.config.CORS_ORIGINS) })
+  await app.register(cors, {
+    origin: parseCorsOrigins(container.config.CORS_ORIGINS),
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE']
+  })
   await app.register(rateLimit, {
     max: container.config.RATE_LIMIT_MAX,
     timeWindow: container.config.RATE_LIMIT_WINDOW
