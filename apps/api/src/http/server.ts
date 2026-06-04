@@ -18,7 +18,16 @@ import { webhookRoutes } from './routes/webhooks'
 
 export async function buildApp(container: Container): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: { level: container.config.LOG_LEVEL },
+    logger:
+      container.config.NODE_ENV === 'development'
+        ? {
+            level: container.config.LOG_LEVEL,
+            transport: {
+              target: 'pino-pretty',
+              options: { translateTime: 'SYS:standard', ignore: 'pid,hostname' }
+            }
+          }
+        : { level: container.config.LOG_LEVEL },
     bodyLimit: container.config.BODY_LIMIT,
     trustProxy: true,
     ajv: { customOptions: { strictSchema: false } }

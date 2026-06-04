@@ -120,6 +120,15 @@ export class SessionManager {
 
   async shutdown(): Promise<void> {
     const ids = [...this.active.keys()]
-    await Promise.all(ids.map((id) => this.stop(id)))
+    await Promise.all(
+      ids.map((id) =>
+        Promise.race([
+          this.stop(id),
+          new Promise<void>((resolve) => {
+            setTimeout(resolve, 3000)
+          })
+        ])
+      )
+    )
   }
 }

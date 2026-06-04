@@ -21,15 +21,28 @@ async function main(): Promise<void> {
   const app = await buildApp(container)
   await app.listen({ host: container.config.HOST, port: container.config.PORT })
 
-  const shutdown = async (): Promise<void> => {
+  let shuttingDown = false
+  const shutdown = async (signal: string): Promise<void> => {
+    if (shuttingDown) return
+    shuttingDown = true
+    container.logger.info({ signal }, 'shutting down')
+
+    const force = setTimeout(() => {
+      container.logger.warn('forced exit after shutdown timeout')
+      process.exit(1)
+    }, 8000)
+    force.unref()
+
     await app.close().catch(() => undefined)
     await container.manager.shutdown().catch(() => undefined)
     await closePool().catch(() => undefined)
+
+    clearTimeout(force)
     process.exit(0)
   }
 
-  process.on('SIGINT', () => void shutdown())
-  process.on('SIGTERM', () => void shutdown())
+  process.on('SIGINT', () => void shutdown('SIGINT'))
+  process.on('SIGTERM', () => void shutdown('SIGTERM'))
 }
 
 main().catch((error) => {
