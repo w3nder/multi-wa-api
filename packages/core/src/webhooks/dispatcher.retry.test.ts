@@ -13,7 +13,8 @@ const messageEvent = {
   chat: 'c@s',
   from: 'c@s',
   fromMe: false,
-  text: 'hi'
+  isGroup: false,
+  content: { type: 'text', text: 'hi' }
 } as const
 
 interface RetryServer {
