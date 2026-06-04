@@ -105,7 +105,8 @@ export function groupRoutes(app: AppInstance, container: Container): void {
         summary: 'Update group subject',
         security: SECURITY,
         params: groupParam,
-        body: updateSubjectInputSchema
+        body: updateSubjectInputSchema,
+        response: { 204: z.null() }
       }
     },
     async (request, reply) => {
@@ -115,7 +116,7 @@ export function groupRoutes(app: AppInstance, container: Container): void {
         request.params.groupId,
         request.body.subject
       )
-      return reply.status(204).send()
+      return reply.status(204).send(null)
     }
   )
 
@@ -127,7 +128,8 @@ export function groupRoutes(app: AppInstance, container: Container): void {
         summary: 'Update group description',
         security: SECURITY,
         params: groupParam,
-        body: updateDescriptionInputSchema
+        body: updateDescriptionInputSchema,
+        response: { 204: z.null() }
       }
     },
     async (request, reply) => {
@@ -137,7 +139,7 @@ export function groupRoutes(app: AppInstance, container: Container): void {
         request.params.groupId,
         request.body.description
       )
-      return reply.status(204).send()
+      return reply.status(204).send(null)
     }
   )
 
@@ -172,7 +174,8 @@ export function groupRoutes(app: AppInstance, container: Container): void {
         summary: 'Update group settings (who can send/edit)',
         security: SECURITY,
         params: groupParam,
-        body: updateGroupSettingInputSchema
+        body: updateGroupSettingInputSchema,
+        response: { 204: z.null() }
       }
     },
     async (request, reply) => {
@@ -182,7 +185,7 @@ export function groupRoutes(app: AppInstance, container: Container): void {
         request.params.groupId,
         request.body.setting
       )
-      return reply.status(204).send()
+      return reply.status(204).send(null)
     }
   )
 
@@ -235,13 +238,14 @@ export function groupRoutes(app: AppInstance, container: Container): void {
         tags: TAGS,
         summary: 'Leave a group',
         security: SECURITY,
-        params: groupParam
+        params: groupParam,
+        response: { 204: z.null() }
       }
     },
     async (request, reply) => {
       await ensure(request)
       await container.groupService.leave(request.params.id, request.params.groupId)
-      return reply.status(204).send()
+      return reply.status(204).send(null)
     }
   )
 }

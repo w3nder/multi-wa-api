@@ -152,12 +152,13 @@ export function sessionRoutes(app: AppInstance, container: Container): void {
         tags: ['sessions'],
         summary: 'Delete a session',
         security: SECURITY,
-        params: idParam
+        params: idParam,
+        response: { 204: z.null() }
       }
     },
     async (request, reply) => {
       await container.sessionService.remove(request.principal.tenantId, request.params.id)
-      return reply.status(204).send()
+      return reply.status(204).send(null)
     }
   )
 

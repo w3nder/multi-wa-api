@@ -106,11 +106,17 @@ export function authRoutes(app: AppInstance, container: Container): void {
     '/api-keys/:id',
     {
       preHandler: app.requireUser,
-      schema: { tags: ['auth'], summary: 'Revoke an API key', security: SECURITY, params: idParam }
+      schema: {
+        tags: ['auth'],
+        summary: 'Revoke an API key',
+        security: SECURITY,
+        params: idParam,
+        response: { 204: z.null() }
+      }
     },
     async (request, reply) => {
       await container.authService.revokeApiKey(request.principal.tenantId, request.params.id)
-      return reply.status(204).send()
+      return reply.status(204).send(null)
     }
   )
 }

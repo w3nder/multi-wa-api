@@ -48,12 +48,13 @@ export function webhookRoutes(app: AppInstance, container: Container): void {
         tags: ['webhooks'],
         summary: 'Delete a webhook',
         security: SECURITY,
-        params: idParam
+        params: idParam,
+        response: { 204: z.null() }
       }
     },
     async (request, reply) => {
       await container.webhookService.delete(request.principal.tenantId, request.params.id)
-      return reply.status(204).send()
+      return reply.status(204).send(null)
     }
   )
 }
