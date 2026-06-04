@@ -88,11 +88,9 @@ export class SessionService {
   async resumeAll(): Promise<void> {
     const resumable = await this.deps.repository.listResumable()
     for (const { session, tenantId } of resumable) {
-      try {
-        await this.deps.manager.start(session, tenantId)
-      } catch (error) {
+      this.deps.manager.start(session, tenantId).catch((error) => {
         this.deps.logger.warn({ err: error, session: session.id }, 'failed to resume session')
-      }
+      })
     }
   }
 }

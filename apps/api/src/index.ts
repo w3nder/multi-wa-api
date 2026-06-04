@@ -16,10 +16,12 @@ async function main(): Promise<void> {
     )
   }
 
-  await container.sessionService.resumeAll()
-
   const app = await buildApp(container)
   await app.listen({ host: container.config.HOST, port: container.config.PORT })
+
+  void container.sessionService.resumeAll().catch((error) => {
+    container.logger.warn({ err: error }, 'failed to resume sessions')
+  })
 
   let shuttingDown = false
   const shutdown = async (signal: string): Promise<void> => {

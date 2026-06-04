@@ -1,3 +1,4 @@
+import { setDefaultResultOrder } from 'node:dns'
 import { loadConfig } from '@multi-wa/config'
 import pg from 'pg'
 
@@ -8,6 +9,7 @@ let pool: pg.Pool | null = null
 
 export function getPool(): pg.Pool {
   if (pool) return pool
+  setDefaultResultOrder('ipv4first')
   const env = loadConfig()
   pool = new Pool({
     connectionString: env.DATABASE_URL,
