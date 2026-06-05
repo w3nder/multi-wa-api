@@ -5,7 +5,9 @@ import { downloadMediaMessage, WaClient } from 'zapo-js'
 import type { PgCleanupPoller } from '@zapo-js/store-postgres'
 import { buildZapoStore, type ZapoStoreBundle } from './store'
 import {
+  mapZapoCall,
   mapZapoChatstate,
+  mapZapoGroup,
   mapZapoMessageEvent,
   mapZapoPresence,
   mapZapoReaction,
@@ -100,6 +102,15 @@ export class ZapoEngine implements WaEngine {
 
     client.on('chatstate', (event) => {
       this.emit(mapZapoChatstate(event))
+    })
+
+    client.on('call', (event) => {
+      const mapped = mapZapoCall(event)
+      if (mapped) this.emit(mapped)
+    })
+
+    client.on('group', (event) => {
+      for (const mapped of mapZapoGroup(event)) this.emit(mapped)
     })
 
     await client.connect()

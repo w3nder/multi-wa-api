@@ -264,6 +264,64 @@ const WEBHOOK_DELIVERY_SCHEMA: OpenAPIV3.SchemaObject = {
         },
         lastSeen: { type: 'number', nullable: true }
       }
+    },
+    {
+      type: 'object',
+      required: ['type', 'status', 'from', 'isGroup'],
+      properties: {
+        type: { type: 'string', enum: ['call'] },
+        status: { type: 'string', enum: ['offer', 'accept', 'reject', 'terminate'] },
+        id: { type: 'string' },
+        from: { type: 'string' },
+        fromAlt: { type: 'string' },
+        isGroup: { type: 'boolean' },
+        groupJid: { type: 'string' },
+        isVideo: { type: 'boolean' },
+        timestamp: { type: 'number' }
+      }
+    },
+    {
+      type: 'object',
+      required: ['type', 'chat', 'action', 'participants'],
+      properties: {
+        type: { type: 'string', enum: ['group_participants'] },
+        chat: { type: 'string' },
+        action: { type: 'string', enum: ['add', 'remove', 'promote', 'demote'] },
+        participants: { type: 'array', items: { type: 'string' } },
+        author: { type: 'string' },
+        authorAlt: { type: 'string' },
+        timestamp: { type: 'number' }
+      }
+    },
+    {
+      type: 'object',
+      required: ['type', 'chat'],
+      properties: {
+        type: { type: 'string', enum: ['group_update'] },
+        chat: { type: 'string' },
+        subject: { type: 'string' },
+        description: { type: 'string' },
+        announce: { type: 'boolean' },
+        restrict: { type: 'boolean' },
+        ephemeralSeconds: { type: 'number' },
+        author: { type: 'string' },
+        authorAlt: { type: 'string' },
+        timestamp: { type: 'number' }
+      }
+    },
+    {
+      type: 'object',
+      required: ['type', 'chat', 'action', 'participant'],
+      properties: {
+        type: { type: 'string', enum: ['membership_request'] },
+        chat: { type: 'string' },
+        action: { type: 'string', enum: ['created', 'revoked', 'rejected'] },
+        participant: { type: 'string' },
+        participantAlt: { type: 'string' },
+        author: { type: 'string' },
+        authorAlt: { type: 'string' },
+        timestamp: { type: 'number' }
+      }
     }
   ]
 }
@@ -359,6 +417,47 @@ const WEBHOOK_DELIVERY_EXAMPLES: Record<string, OpenAPIV3.ExampleObject> = {
   presence: {
     summary: 'presence event (typing)',
     value: { type: 'presence', chat: '5511888888888@s.whatsapp.net', status: 'composing' }
+  },
+  call: {
+    summary: 'call event (incoming)',
+    value: {
+      type: 'call',
+      status: 'offer',
+      id: 'CALL-1',
+      from: '5511888888888@s.whatsapp.net',
+      fromAlt: '199999999999999@lid',
+      isGroup: false,
+      isVideo: false,
+      timestamp: 1730000000
+    }
+  },
+  group_participants: {
+    summary: 'group participants event (add)',
+    value: {
+      type: 'group_participants',
+      chat: '120363000000000000@g.us',
+      action: 'add',
+      participants: ['5511888888888@s.whatsapp.net'],
+      author: '5511999999999@s.whatsapp.net'
+    }
+  },
+  group_update: {
+    summary: 'group update event (subject)',
+    value: {
+      type: 'group_update',
+      chat: '120363000000000000@g.us',
+      subject: 'Novo nome',
+      author: '5511999999999@s.whatsapp.net'
+    }
+  },
+  membership_request: {
+    summary: 'membership request event (created)',
+    value: {
+      type: 'membership_request',
+      chat: '120363000000000000@g.us',
+      action: 'created',
+      participant: '5511888888888@s.whatsapp.net'
+    }
   }
 }
 
@@ -371,6 +470,11 @@ const WEBHOOK_DESCRIPTION = [
   '- `message`: inbound/outbound messages of any type. `content` is normalized and discriminated by `type` (text, image, video, audio, document, sticker, location, contact, reaction, poll, buttons_response, list_response). Group messages have `isGroup: true`, `chat` ending in `@g.us` and `participant` set to the author jid. `fromAlt` carries the alternate addressing of `from` (the phone-number jid when `from` is a lid, or vice-versa) when the engine provides it. `mentions` lists the jids mentioned in the message (omitted when none); `quoted` carries the replied-to message (`id`, `participant`, normalized `content`) when the message is a reply. Media payloads carry metadata only; fetch bytes separately.',
   '- `ack`: message delivery status for the given `ids` (`pending`, `sent`, `delivered`, `read`, `played`, `error`).',
   '- `presence`: chat presence (`available`, `unavailable`, `composing`, `recording`, `paused`).',
+  '- `call`: incoming call signaling (`offer`, `accept`, `reject`, `terminate`). A missed call is an `offer` not followed by `accept`, then a `terminate`.',
+  '- `group_participants`: members `add`ed, `remove`d, `promote`d or `demote`d. `participants` are the affected jids; `author` is the admin who acted.',
+  '- `group_update`: a group metadata change. Each delivery is a partial patch (only the fields that changed): `subject`, `description`, `announce`, `restrict`, `ephemeralSeconds`.',
+  '- `membership_request`: a group join request `created`, `revoked` or `rejected` (`rejected` is baileys-only).',
+  '- lid<->pn: `call`, `group_participants`, `group_update` and `membership_request` expose the alternate addressing of their principal jid (`fromAlt` / `authorAlt` / `participantAlt`) when the engine resolves it.',
   '',
   'Payloads are identical across the zapo and baileys engines. See the WebhookDelivery schema for full shapes and examples.'
 ].join('\n')

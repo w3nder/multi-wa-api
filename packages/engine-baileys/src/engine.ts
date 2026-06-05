@@ -11,6 +11,10 @@ import { clearBaileys, usePostgresAuthState } from './auth-state'
 import {
   isBaileysReactionUpsert,
   mapBaileysAck,
+  mapBaileysCall,
+  mapBaileysGroupParticipants,
+  mapBaileysGroupUpdate,
+  mapBaileysMembershipRequest,
   mapBaileysMessageEvent,
   mapBaileysPresence,
   mapBaileysReaction,
@@ -108,6 +112,30 @@ export class BaileysEngine implements WaEngine {
       for (const event of mapBaileysPresence(update)) {
         this.emit(event)
       }
+    })
+
+    sock.ev.on('call', (calls) => {
+      for (const call of calls) {
+        const event = mapBaileysCall(call)
+        if (event) this.emit(event)
+      }
+    })
+
+    sock.ev.on('group-participants.update', (update) => {
+      const event = mapBaileysGroupParticipants(update)
+      if (event) this.emit(event)
+    })
+
+    sock.ev.on('groups.update', (updates) => {
+      for (const update of updates) {
+        const event = mapBaileysGroupUpdate(update)
+        if (event) this.emit(event)
+      }
+    })
+
+    sock.ev.on('group.join-request', (update) => {
+      const event = mapBaileysMembershipRequest(update)
+      if (event) this.emit(event)
     })
   }
 
