@@ -623,4 +623,13 @@ describe('mapZapoGroup', () => {
     expect(mapZapoGroup({ action: 'announce', groupJid: 'g@g.us' })).toEqual([])
     expect(mapZapoGroup({ action: 'ephemeral', groupJid: 'g@g.us' })).toEqual([])
   })
+
+  it('keeps explicit false for announce and restrict (false is not "missing")', () => {
+    expect(mapZapoGroup({ action: 'announce', groupJid: 'g@g.us', enabled: false })).toEqual([
+      { type: 'group_update', chat: 'g@g.us', announce: false }
+    ])
+    expect(mapZapoGroup({ action: 'restrict', groupJid: 'g@g.us', enabled: false })).toEqual([
+      { type: 'group_update', chat: 'g@g.us', restrict: false }
+    ])
+  })
 })

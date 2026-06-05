@@ -213,4 +213,41 @@ describe('issue #7 event schemas', () => {
       expect(createWebhookInputSchema.safeParse({ url: 'https://x/hook', events: [event] }).success).toBe(true)
     }
   })
+
+  it('retains lid<->pn alternate fields through parsing', () => {
+    const call = engineEventSchema.parse({
+      type: 'call',
+      status: 'offer',
+      from: '99@lid',
+      fromAlt: '5511888888888@s.whatsapp.net',
+      isGroup: false
+    })
+    expect(call).toMatchObject({ type: 'call', fromAlt: '5511888888888@s.whatsapp.net' })
+
+    const participants = engineEventSchema.parse({
+      type: 'group_participants',
+      chat: 'g@g.us',
+      action: 'add',
+      participants: ['a@lid'],
+      authorAlt: '5511999999999@s.whatsapp.net'
+    })
+    expect(participants).toMatchObject({
+      type: 'group_participants',
+      authorAlt: '5511999999999@s.whatsapp.net'
+    })
+
+    const membership = engineEventSchema.parse({
+      type: 'membership_request',
+      chat: 'g@g.us',
+      action: 'created',
+      participant: 'a@lid',
+      participantAlt: '5511888888888@s.whatsapp.net',
+      authorAlt: '5511999999999@s.whatsapp.net'
+    })
+    expect(membership).toMatchObject({
+      type: 'membership_request',
+      participantAlt: '5511888888888@s.whatsapp.net',
+      authorAlt: '5511999999999@s.whatsapp.net'
+    })
+  })
 })

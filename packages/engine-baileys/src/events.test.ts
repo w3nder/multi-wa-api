@@ -620,6 +620,19 @@ describe('mapBaileysGroupUpdate', () => {
     expect(mapBaileysGroupUpdate({ id: 'g@g.us', author: 'x' })).toBeNull()
     expect(mapBaileysGroupUpdate({ subject: 'New' })).toBeNull()
   })
+
+  it('keeps explicit false for announce and restrict', () => {
+    expect(mapBaileysGroupUpdate({ id: 'g@g.us', announce: false })).toEqual({
+      type: 'group_update',
+      chat: 'g@g.us',
+      announce: false
+    })
+    expect(mapBaileysGroupUpdate({ id: 'g@g.us', restrict: false })).toEqual({
+      type: 'group_update',
+      chat: 'g@g.us',
+      restrict: false
+    })
+  })
 })
 
 describe('mapBaileysMembershipRequest', () => {
