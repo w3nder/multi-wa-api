@@ -9,9 +9,11 @@ import makeWASocket, {
 } from 'baileys'
 import { clearBaileys, usePostgresAuthState } from './auth-state'
 import {
+  isBaileysEditUpsert,
   isBaileysReactionUpsert,
   mapBaileysAck,
   mapBaileysCall,
+  mapBaileysEdit,
   mapBaileysGroupParticipants,
   mapBaileysGroupUpdate,
   mapBaileysMembershipRequest,
@@ -83,6 +85,10 @@ export class BaileysEngine implements WaEngine {
         if (!message.key.remoteJid) continue
         // reactions arrive via the dedicated 'messages.reaction' event
         if (isBaileysReactionUpsert(message)) continue
+        if (isBaileysEditUpsert(message)) {
+          this.emit(mapBaileysEdit(message))
+          continue
+        }
         this.emit(mapBaileysMessageEvent(message))
       }
     })
