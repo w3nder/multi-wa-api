@@ -322,6 +322,32 @@ const WEBHOOK_DELIVERY_SCHEMA: OpenAPIV3.SchemaObject = {
         authorAlt: { type: 'string' },
         timestamp: { type: 'number' }
       }
+    },
+    {
+      type: 'object',
+      required: ['type', 'id', 'chat', 'from', 'fromMe', 'isGroup', 'content'],
+      properties: {
+        type: { type: 'string', enum: ['message_edit'] },
+        id: { type: 'string', description: 'id of the original (edited) message' },
+        chat: { type: 'string' },
+        from: { type: 'string' },
+        fromMe: { type: 'boolean' },
+        isGroup: { type: 'boolean' },
+        participant: { type: 'string' },
+        fromAlt: { type: 'string' },
+        timestamp: { type: 'number' },
+        content: INBOUND_CONTENT_SCHEMA,
+        mentions: { type: 'array', items: { type: 'string' } },
+        quoted: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string' },
+            participant: { type: 'string' },
+            content: INBOUND_CONTENT_SCHEMA
+          }
+        }
+      }
     }
   ]
 }
@@ -458,6 +484,34 @@ const WEBHOOK_DELIVERY_EXAMPLES: Record<string, OpenAPIV3.ExampleObject> = {
       action: 'created',
       participant: '5511888888888@s.whatsapp.net'
     }
+  },
+  message_edit_direct: {
+    summary: 'message edit event (text, direct)',
+    value: {
+      type: 'message_edit',
+      id: '3EA9...',
+      chat: '5511888888888@s.whatsapp.net',
+      from: '5511888888888@s.whatsapp.net',
+      fromMe: false,
+      isGroup: false,
+      timestamp: 1730000100,
+      content: { type: 'text', text: 'mensagem corrigida' }
+    }
+  },
+  message_edit_group: {
+    summary: 'message edit event (group)',
+    value: {
+      type: 'message_edit',
+      id: '3EA9...',
+      chat: '120363000000000000@g.us',
+      from: '199999999999999@lid',
+      fromMe: false,
+      isGroup: true,
+      participant: '199999999999999@lid',
+      fromAlt: '5511888888888@s.whatsapp.net',
+      timestamp: 1730000100,
+      content: { type: 'text', text: 'corrigido no grupo' }
+    }
   }
 }
 
@@ -474,6 +528,7 @@ const WEBHOOK_DESCRIPTION = [
   '- `group_participants`: members `add`ed, `remove`d, `promote`d or `demote`d. `participants` are the affected jids; `author` is the admin who acted.',
   '- `group_update`: a group metadata change. Each delivery is a partial patch (only the fields that changed): `subject`, `description`, `announce`, `restrict`, `ephemeralSeconds`.',
   '- `membership_request`: a group join request `created`, `revoked` or `rejected` (`rejected` is baileys-only).',
+  "- `message_edit`: a previously sent message was edited. `id` is the original message's id, `content` is the new normalized content (same shapes as `message`). `fromMe` is true for your own edits synced from another device, false for a contact's edit. Subscribe to `message_edit` explicitly to receive it.",
   '- lid<->pn: `call`, `group_participants`, `group_update` and `membership_request` expose the alternate addressing of their principal jid (`fromAlt` / `authorAlt` / `participantAlt`) when the engine resolves it.',
   '',
   'Payloads are identical across the zapo and baileys engines. See the WebhookDelivery schema for full shapes and examples.'
