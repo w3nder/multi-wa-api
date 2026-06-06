@@ -5,8 +5,12 @@ import { downloadMediaMessage, WaClient } from 'zapo-js'
 import type { PgCleanupPoller } from '@zapo-js/store-postgres'
 import { buildZapoStore, type ZapoStoreBundle } from './store'
 import {
+  isZapoAddonEnvelope,
+  isZapoEditMessage,
   mapZapoCall,
   mapZapoChatstate,
+  mapZapoEditFromAddon,
+  mapZapoEditFromMessage,
   mapZapoGroup,
   mapZapoMessageEvent,
   mapZapoPresence,
@@ -83,10 +87,20 @@ export class ZapoEngine implements WaEngine {
     })
 
     client.on('message', (event) => {
+      if (isZapoAddonEnvelope(event)) return
+      if (isZapoEditMessage(event)) {
+        this.emit(mapZapoEditFromMessage(event))
+        return
+      }
       this.emit(mapZapoMessageEvent(event))
     })
 
     client.on('message_addon', (event) => {
+      const edit = mapZapoEditFromAddon(event)
+      if (edit) {
+        this.emit(edit)
+        return
+      }
       const reaction = mapZapoReaction(event)
       if (reaction) this.emit(reaction)
     })
