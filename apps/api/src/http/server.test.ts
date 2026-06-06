@@ -1,3 +1,4 @@
+import { Readable } from 'node:stream'
 import { AppError } from '@multi-wa/core'
 import type { FastifyInstance } from 'fastify'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -46,6 +47,9 @@ function fakeContainer(): Container {
       WA_TABLE_PREFIX: 'wa_',
       WEBHOOK_TIMEOUT_MS: 1000,
       WEBHOOK_MAX_RETRIES: 0,
+      MEDIA_STORAGE: 'none',
+      S3_REGION: 'us-east-1',
+      S3_FORCE_PATH_STYLE: false,
       BOOTSTRAP_TENANT_NAME: 'default'
     },
     logger: { level: 'silent' } as never,
@@ -70,6 +74,13 @@ function fakeContainer(): Container {
       updateParticipants: async () => [{ id: '5511@s.whatsapp.net', status: 200 }]
     } as never,
     webhookService: {} as never,
+    mediaService: {
+      download: async () => Readable.from([Buffer.from('media-bytes')])
+    } as never,
+    tenantRepository: {
+      getMediaStorage: async () => 'none',
+      setMediaStorage: async (_tenant: string, mode: string) => mode
+    } as never,
     manager: {} as never
   }
 }
@@ -181,5 +192,46 @@ describe('api routes', () => {
       payload: { action: 'banana', participants: ['5511'] }
     })
     expect(res.statusCode).toBe(400)
+  })
+
+  it('downloads media bytes from a normalized reference', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: `/sessions/${session.id}/media/download`,
+      headers: { 'x-api-key': 'valid.key' },
+      payload: { type: 'image', media: { mimetype: 'image/jpeg', mediaKey: 'K', directPath: '/v' } }
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['content-type']).toBe('image/jpeg')
+    expect(res.body).toBe('media-bytes')
+  })
+
+  it('rejects an invalid media download payload with 400', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: `/sessions/${session.id}/media/download`,
+      headers: { 'x-api-key': 'valid.key' },
+      payload: { type: 'gif', media: {} }
+    })
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('reads and updates tenant settings', async () => {
+    const get = await app.inject({
+      method: 'GET',
+      url: '/tenant/settings',
+      headers: { 'x-api-key': 'valid.key' }
+    })
+    expect(get.statusCode).toBe(200)
+    expect(get.json().mediaStorage).toBe('none')
+
+    const patch = await app.inject({
+      method: 'PATCH',
+      url: '/tenant/settings',
+      headers: { 'x-api-key': 'valid.key' },
+      payload: { mediaStorage: 's3' }
+    })
+    expect(patch.statusCode).toBe(200)
+    expect(patch.json().mediaStorage).toBe('s3')
   })
 })

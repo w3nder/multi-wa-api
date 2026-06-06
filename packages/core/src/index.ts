@@ -40,6 +40,11 @@ export { WebhookDispatcher } from './webhooks/dispatcher'
 export type { WebhookDispatcherOptions } from './webhooks/dispatcher'
 export { WebhookService } from './webhooks/service'
 
+export { TenantRepository } from './tenants/repository'
+export { MediaService } from './media/service'
+export type { MediaServiceDeps } from './media/service'
+export type { MediaStorage } from './media/storage'
+
 export { UserRepository, ApiKeyRepository, RefreshTokenRepository } from './auth/repository'
 export type { UserRecord, ApiKeyRecord, RefreshTokenRecord } from './auth/repository'
 export { AuthService } from './auth/service'

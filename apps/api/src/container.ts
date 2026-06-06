@@ -4,12 +4,14 @@ import {
   AuthService,
   getLogger,
   GroupService,
+  MediaService,
   MessagingService,
   MigrationService,
   RefreshTokenRepository,
   SessionManager,
   SessionRepository,
   SessionService,
+  TenantRepository,
   UserRepository,
   WebhookDispatcher,
   WebhookRepository,
@@ -21,6 +23,7 @@ import {
 import { getPool, type Pool } from '@multi-wa/db'
 import { baileysSnapshotAdapter, createBaileysEngine } from '@multi-wa/engine-baileys'
 import { createZapoEngine, zapoSnapshotAdapter } from '@multi-wa/engine-zapo'
+import { createS3Storage } from './media/s3'
 
 export interface Container {
   config: Env
@@ -31,6 +34,8 @@ export interface Container {
   messagingService: MessagingService
   groupService: GroupService
   webhookService: WebhookService
+  mediaService: MediaService
+  tenantRepository: TenantRepository
   manager: SessionManager
 }
 
@@ -60,13 +65,32 @@ export function createContainer(): Container {
     zapo: zapoSnapshotAdapter
   }
 
+  const tenantRepository = new TenantRepository(pool)
+  const mediaStorage = createS3Storage(config)
+
   const manager = new SessionManager({
     pool,
     tablePrefix: config.WA_TABLE_PREFIX,
     logger,
     registry,
     repository: sessionRepository,
-    onEvent: (tenantId, sessionId, event) => dispatcher.dispatch(tenantId, sessionId, event)
+    onEvent: (tenantId, sessionId, event) => {
+      void mediaService
+        .resolveForDispatch(tenantId, sessionId, event)
+        .then((resolved) => dispatcher.dispatch(tenantId, sessionId, resolved))
+        .catch((error) => {
+          logger.warn({ err: error, session: sessionId }, 'media resolution failed')
+          dispatcher.dispatch(tenantId, sessionId, event)
+        })
+    }
+  })
+
+  const mediaService = new MediaService({
+    manager,
+    tenants: tenantRepository,
+    storage: mediaStorage,
+    defaultMode: config.MEDIA_STORAGE,
+    logger
   })
 
   const migration = new MigrationService(snapshots, logger)
@@ -98,6 +122,8 @@ export function createContainer(): Container {
     messagingService,
     groupService,
     webhookService,
+    mediaService,
+    tenantRepository,
     manager
   }
 }

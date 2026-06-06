@@ -1,3 +1,4 @@
+import { Readable } from 'node:stream'
 import type { EngineEvent, EngineKind, Session } from '@multi-wa/types'
 import { pino } from 'pino'
 import type { Logger } from '../lib/logger'
@@ -31,6 +32,9 @@ class FakeEngine implements WaEngine {
   async logout(): Promise<void> {}
   async send(): Promise<{ id: string }> {
     return { id: 'msg' }
+  }
+  async downloadMedia(): Promise<Readable> {
+    return Readable.from([])
   }
 }
 

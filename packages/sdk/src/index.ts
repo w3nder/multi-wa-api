@@ -4,6 +4,7 @@ import type {
   CreateGroupInput,
   CreateSessionInput,
   CreateWebhookInput,
+  DownloadMediaInput,
   EngineEvent,
   EngineKind,
   GroupIdResult,
@@ -11,6 +12,7 @@ import type {
   GroupSetting,
   InviteCodeResult,
   MediaSource,
+  MediaStorageMode,
   MessageContent,
   ParticipantAction,
   ParticipantResult,
@@ -18,6 +20,7 @@ import type {
   SendMessageInput,
   SendMessageResult,
   Session,
+  TenantSettings,
   TokenPair,
   Webhook,
   WebhookCreated
@@ -101,6 +104,18 @@ export function createClient(options: ClientOptions) {
 
   const send = (sessionId: string, input: SendMessageInput): Promise<SendMessageResult> =>
     call('POST', `/sessions/${sessionId}/messages`, input)
+
+  const downloadMedia = async (sessionId: string, ref: DownloadMediaInput): Promise<Buffer> => {
+    const response = await request(`${base}/sessions/${sessionId}/media/download`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify(ref)
+    })
+    if (response.statusCode >= 400) {
+      throw new WaApiError(response.statusCode, await response.body.text())
+    }
+    return Buffer.from(await response.body.arrayBuffer())
+  }
 
   const client = {
     auth: {
@@ -217,6 +232,15 @@ export function createClient(options: ClientOptions) {
         call('POST', '/webhooks', input),
       list: (): Promise<Webhook[]> => call('GET', '/webhooks'),
       remove: (id: string): Promise<void> => call('DELETE', `/webhooks/${id}`)
+    },
+    media: {
+      download: (sessionId: string, ref: DownloadMediaInput): Promise<Buffer> =>
+        downloadMedia(sessionId, ref)
+    },
+    tenant: {
+      getSettings: (): Promise<TenantSettings> => call('GET', '/tenant/settings'),
+      updateSettings: (mediaStorage: MediaStorageMode): Promise<TenantSettings> =>
+        call('PATCH', '/tenant/settings', { mediaStorage })
     }
   }
 

@@ -1,9 +1,18 @@
+import type { Readable } from 'node:stream'
 import { errors, type EngineOptions, type WaEngine } from '@multi-wa/core'
-import type { EngineEvent, MessageContent, MessageEvent, SendMessageResult } from '@multi-wa/types'
-import { WaClient } from 'zapo-js'
+import type { EngineEvent, MessageContent, MediaRef, MessageEvent, SendMessageResult } from '@multi-wa/types'
+import { downloadMediaMessage, WaClient } from 'zapo-js'
 import type { PgCleanupPoller } from '@zapo-js/store-postgres'
 import { buildZapoStore, type ZapoStoreBundle } from './store'
-import { mapZapoChatstate, mapZapoMessageEvent, mapZapoPresence, mapZapoReceipt } from './events'
+import {
+  mapZapoCall,
+  mapZapoChatstate,
+  mapZapoGroup,
+  mapZapoMessageEvent,
+  mapZapoPresence,
+  mapZapoReaction,
+  mapZapoReceipt
+} from './events'
 import { createZapoGroups } from './groups'
 import { toZapoLogger } from './logger'
 import { toZapoContent, toInboundContent } from './translate'
@@ -77,6 +86,11 @@ export class ZapoEngine implements WaEngine {
       this.emit(mapZapoMessageEvent(event))
     })
 
+    client.on('message_addon', (event) => {
+      const reaction = mapZapoReaction(event)
+      if (reaction) this.emit(reaction)
+    })
+
     client.on('receipt', (event) => {
       const ack = mapZapoReceipt(event)
       if (ack) this.emit(ack)
@@ -88,6 +102,15 @@ export class ZapoEngine implements WaEngine {
 
     client.on('chatstate', (event) => {
       this.emit(mapZapoChatstate(event))
+    })
+
+    client.on('call', (event) => {
+      const mapped = mapZapoCall(event)
+      if (mapped) this.emit(mapped)
+    })
+
+    client.on('group', (event) => {
+      for (const mapped of mapZapoGroup(event)) this.emit(mapped)
     })
 
     await client.connect()
@@ -169,6 +192,38 @@ export class ZapoEngine implements WaEngine {
     }
     
     return { id: result.id }
+  }
+
+  async downloadMedia(ref: MediaRef): Promise<Readable> {
+    if (!ref.media.mediaKey || !ref.media.directPath) {
+      throw errors.badRequest('media reference is missing mediaKey or directPath')
+    }
+    return downloadMediaMessage(buildMediaMessage(ref))
+  }
+}
+
+function buildMediaMessage(ref: MediaRef) {
+  const media = {
+    url: ref.media.url ?? undefined,
+    directPath: ref.media.directPath ?? undefined,
+    mediaKey: ref.media.mediaKey ? Buffer.from(ref.media.mediaKey, 'base64') : undefined,
+    mimetype: ref.media.mimetype ?? undefined,
+    fileEncSha256: ref.media.fileEncSha256
+      ? Buffer.from(ref.media.fileEncSha256, 'base64')
+      : undefined,
+    fileSha256: ref.media.fileSha256 ? Buffer.from(ref.media.fileSha256, 'base64') : undefined
+  }
+  switch (ref.type) {
+    case 'image':
+      return { imageMessage: media }
+    case 'video':
+      return { videoMessage: media }
+    case 'audio':
+      return { audioMessage: media }
+    case 'document':
+      return { documentMessage: media }
+    case 'sticker':
+      return { stickerMessage: media }
   }
 }
 

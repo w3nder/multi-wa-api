@@ -10,12 +10,19 @@ export function streamEvents(
   manager: SessionManager,
   sessionId: string
 ): void {
+  const allowOrigin = reply.getHeader('access-control-allow-origin')
+  const allowCredentials = reply.getHeader('access-control-allow-credentials')
+  const vary = reply.getHeader('vary')
+
   reply.hijack()
   const raw = reply.raw
   raw.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
-    Connection: 'keep-alive'
+    Connection: 'keep-alive',
+    ...(allowOrigin ? { 'Access-Control-Allow-Origin': String(allowOrigin) } : {}),
+    ...(allowCredentials ? { 'Access-Control-Allow-Credentials': String(allowCredentials) } : {}),
+    ...(vary ? { Vary: String(vary) } : {})
   })
 
   const send = (event: EngineEvent): void => {

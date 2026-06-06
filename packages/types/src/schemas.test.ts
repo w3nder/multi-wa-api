@@ -149,3 +149,105 @@ describe('engine event schema', () => {
     expect(engineEventSchema.safeParse({ type: 'connection', status: 'bogus' }).success).toBe(false)
   })
 })
+
+describe('issue #7 event schemas', () => {
+  it('parses a call event', () => {
+    expect(
+      engineEventSchema.safeParse({ type: 'call', status: 'offer', from: 'u@s.whatsapp.net', isGroup: false })
+        .success
+    ).toBe(true)
+    expect(
+      engineEventSchema.safeParse({ type: 'call', status: 'missed', from: 'u', isGroup: false }).success
+    ).toBe(false)
+  })
+
+  it('parses a group_participants event', () => {
+    expect(
+      engineEventSchema.safeParse({
+        type: 'group_participants',
+        chat: 'g@g.us',
+        action: 'add',
+        participants: ['a@s.whatsapp.net']
+      }).success
+    ).toBe(true)
+    expect(
+      engineEventSchema.safeParse({
+        type: 'group_participants',
+        chat: 'g@g.us',
+        action: 'modify',
+        participants: []
+      }).success
+    ).toBe(false)
+  })
+
+  it('parses a partial group_update event', () => {
+    expect(engineEventSchema.safeParse({ type: 'group_update', chat: 'g@g.us', subject: 'New' }).success).toBe(
+      true
+    )
+    expect(engineEventSchema.safeParse({ type: 'group_update', chat: 'g@g.us', announce: true }).success).toBe(
+      true
+    )
+  })
+
+  it('parses a membership_request event', () => {
+    expect(
+      engineEventSchema.safeParse({
+        type: 'membership_request',
+        chat: 'g@g.us',
+        action: 'created',
+        participant: 'a@s.whatsapp.net'
+      }).success
+    ).toBe(true)
+    expect(
+      engineEventSchema.safeParse({
+        type: 'membership_request',
+        chat: 'g@g.us',
+        action: 'approved',
+        participant: 'a'
+      }).success
+    ).toBe(false)
+  })
+
+  it('accepts the new webhook event types', () => {
+    for (const event of ['call', 'group_participants', 'group_update', 'membership_request']) {
+      expect(createWebhookInputSchema.safeParse({ url: 'https://x/hook', events: [event] }).success).toBe(true)
+    }
+  })
+
+  it('retains lid<->pn alternate fields through parsing', () => {
+    const call = engineEventSchema.parse({
+      type: 'call',
+      status: 'offer',
+      from: '99@lid',
+      fromAlt: '5511888888888@s.whatsapp.net',
+      isGroup: false
+    })
+    expect(call).toMatchObject({ type: 'call', fromAlt: '5511888888888@s.whatsapp.net' })
+
+    const participants = engineEventSchema.parse({
+      type: 'group_participants',
+      chat: 'g@g.us',
+      action: 'add',
+      participants: ['a@lid'],
+      authorAlt: '5511999999999@s.whatsapp.net'
+    })
+    expect(participants).toMatchObject({
+      type: 'group_participants',
+      authorAlt: '5511999999999@s.whatsapp.net'
+    })
+
+    const membership = engineEventSchema.parse({
+      type: 'membership_request',
+      chat: 'g@g.us',
+      action: 'created',
+      participant: 'a@lid',
+      participantAlt: '5511888888888@s.whatsapp.net',
+      authorAlt: '5511999999999@s.whatsapp.net'
+    })
+    expect(membership).toMatchObject({
+      type: 'membership_request',
+      participantAlt: '5511888888888@s.whatsapp.net',
+      authorAlt: '5511999999999@s.whatsapp.net'
+    })
+  })
+})

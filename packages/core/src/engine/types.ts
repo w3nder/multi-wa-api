@@ -1,3 +1,4 @@
+import type { Readable } from 'node:stream'
 import type { Pool } from '@multi-wa/db'
 import type {
   CreateGroupInput,
@@ -5,6 +6,7 @@ import type {
   EngineKind,
   GroupMetadata,
   GroupSetting,
+  MediaRef,
   MessageContent,
   ParticipantAction,
   ParticipantResult,
@@ -43,6 +45,7 @@ export interface WaEngine {
   stop(): Promise<void>
   logout(): Promise<void>
   send(to: string, content: MessageContent): Promise<SendMessageResult>
+  downloadMedia(ref: MediaRef): Promise<Readable>
   readonly groups: GroupOperations
   onEvent(handler: (event: EngineEvent) => void): void
 }

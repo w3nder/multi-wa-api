@@ -5,7 +5,13 @@ export const inboundMediaSchema = z.object({
   size: z.number().optional(),
   width: z.number().optional(),
   height: z.number().optional(),
-  seconds: z.number().optional()
+  seconds: z.number().optional(),
+  directPath: z.string().optional(),
+  url: z.string().optional(),
+  mediaKey: z.string().optional(),
+  fileEncSha256: z.string().optional(),
+  fileSha256: z.string().optional(),
+  stored: z.enum(['s3']).optional()
 })
 export type InboundMedia = z.infer<typeof inboundMediaSchema>
 

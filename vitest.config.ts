@@ -4,8 +4,6 @@ import { configDefaults, defineConfig } from 'vitest/config'
 const pkg = (name: string): string =>
   fileURLToPath(new URL(`./packages/${name}/src/index.ts`, import.meta.url))
 
-const referenceRepos = ['zapo', 'evolution-api', 'waha', 'wa-store-migrate', 'gomib']
-
 export default defineConfig({
   resolve: {
     alias: {
@@ -19,7 +17,8 @@ export default defineConfig({
     }
   },
   test: {
-    exclude: [...configDefaults.exclude, ...referenceRepos.map((dir) => `${dir}/**`)],
+    include: ['packages/*/src/**/*.test.ts', 'apps/*/src/**/*.test.ts', 'src/**/*.test.ts'],
+    exclude: [...configDefaults.exclude],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],

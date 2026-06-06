@@ -1,15 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import type {
+  WaIncomingAddonEvent,
   WaIncomingChatstateEvent,
   WaIncomingMessageEvent,
   WaIncomingPresenceEvent,
   WaIncomingReceiptEvent
 } from 'zapo-js'
 import {
+  mapZapoCall,
   mapZapoChatstate,
   mapZapoContent,
+  mapZapoContext,
+  mapZapoGroup,
   mapZapoMessageEvent,
   mapZapoPresence,
+  mapZapoReaction,
   mapZapoReceipt
 } from './events'
 
@@ -161,6 +166,26 @@ describe('mapZapoContent', () => {
     expect(mapZapoContent(null)).toEqual({ type: 'unknown' })
     expect(mapZapoContent(undefined)).toEqual({ type: 'unknown' })
   })
+
+  it('includes base64 download pointers in media', () => {
+    const out = mapZapoContent({
+      documentMessage: {
+        mediaKey: new Uint8Array([9, 8]),
+        directPath: '/v/d',
+        url: 'https://cdn/d',
+        fileEncSha256: new Uint8Array([7])
+      }
+    })
+    expect(out).toMatchObject({
+      type: 'document',
+      media: {
+        directPath: '/v/d',
+        url: 'https://cdn/d',
+        mediaKey: Buffer.from([9, 8]).toString('base64'),
+        fileEncSha256: Buffer.from([7]).toString('base64')
+      }
+    })
+  })
 })
 
 describe('mapZapoMessageEvent', () => {
@@ -215,6 +240,176 @@ describe('mapZapoMessageEvent', () => {
     expect(event.from).toBe('55@s.whatsapp.net')
     expect(event.isGroup).toBe(true)
     expect(event.content).toEqual({ type: 'unknown' })
+  })
+
+  it('exposes fromAlt (lid<->pn) from the key, omitting it when absent', () => {
+    const lidGroup = mapZapoMessageEvent(
+      base({
+        key: {
+          remoteJid: '123@g.us',
+          id: 'M4',
+          fromMe: false,
+          participant: '199@lid',
+          participantAlt: '55@s.whatsapp.net',
+          isGroup: true,
+          isBroadcast: false,
+          isNewsletter: false,
+          senderDevice: 0
+        },
+        message: { conversation: 'oi' }
+      })
+    )
+    expect(lidGroup.from).toBe('199@lid')
+    expect(lidGroup.fromAlt).toBe('55@s.whatsapp.net')
+
+    const lidDirect = mapZapoMessageEvent(
+      base({
+        key: {
+          remoteJid: '199@lid',
+          id: 'M5',
+          fromMe: false,
+          remoteJidAlt: '55@s.whatsapp.net',
+          isGroup: false,
+          isBroadcast: false,
+          isNewsletter: false,
+          senderDevice: 0
+        },
+        message: { conversation: 'oi' }
+      })
+    )
+    expect(lidDirect.from).toBe('199@lid')
+    expect(lidDirect.fromAlt).toBe('55@s.whatsapp.net')
+
+    const plain = mapZapoMessageEvent(base({ message: { conversation: 'oi' } }))
+    expect(plain.fromAlt).toBeUndefined()
+  })
+
+  it('includes mentions and quoted when present, omits them otherwise', () => {
+    const plain = mapZapoMessageEvent(base({ message: { conversation: 'oi' } }))
+    expect(plain).not.toHaveProperty('mentions')
+    expect(plain).not.toHaveProperty('quoted')
+
+    const reply = mapZapoMessageEvent(
+      base({
+        message: {
+          extendedTextMessage: {
+            text: '@77 sim',
+            contextInfo: {
+              mentionedJid: ['77@s.whatsapp.net'],
+              stanzaId: 'ORIG1',
+              participant: '77@s.whatsapp.net',
+              quotedMessage: { conversation: 'alguém confirma?' }
+            }
+          }
+        }
+      })
+    )
+    expect(reply.mentions).toEqual(['77@s.whatsapp.net'])
+    expect(reply.quoted).toEqual({
+      id: 'ORIG1',
+      participant: '77@s.whatsapp.net',
+      content: { type: 'text', text: 'alguém confirma?' }
+    })
+  })
+})
+
+describe('mapZapoContext', () => {
+  it('returns empty object without message or context', () => {
+    expect(mapZapoContext(null)).toEqual({})
+    expect(mapZapoContext({ conversation: 'hi' })).toEqual({})
+    expect(mapZapoContext({ extendedTextMessage: { text: 'hi' } })).toEqual({})
+  })
+
+  it('extracts mentions filtering falsy jids', () => {
+    expect(
+      mapZapoContext({
+        extendedTextMessage: {
+          text: 'hi',
+          contextInfo: { mentionedJid: ['a@s.whatsapp.net', '', 'b@s.whatsapp.net'] }
+        }
+      })
+    ).toEqual({ mentions: ['a@s.whatsapp.net', 'b@s.whatsapp.net'] })
+  })
+
+  it('reads context from media messages and unwraps wrappers', () => {
+    expect(
+      mapZapoContext({
+        ephemeralMessage: {
+          message: {
+            imageMessage: { contextInfo: { stanzaId: 'Q1', participant: 'x@s.whatsapp.net' } }
+          }
+        }
+      })
+    ).toEqual({ quoted: { id: 'Q1', participant: 'x@s.whatsapp.net', content: undefined } })
+  })
+
+  it('drops quoted when there is no stanzaId', () => {
+    expect(mapZapoContext({ extendedTextMessage: { contextInfo: { participant: 'x' } } })).toEqual(
+      {}
+    )
+  })
+})
+
+describe('mapZapoReaction', () => {
+  const addonKey = {
+    remoteJid: '123@g.us',
+    id: 'R1',
+    fromMe: false,
+    participant: '55@lid',
+    participantAlt: '55@s.whatsapp.net',
+    isGroup: true,
+    isBroadcast: false,
+    isNewsletter: false,
+    senderDevice: 0
+  }
+
+  it('maps a reaction addon to the normalized reaction shape', () => {
+    const event: WaIncomingAddonEvent = {
+      rawNode,
+      key: addonKey,
+      kind: 'reaction',
+      targetMessageId: 'TARGET1',
+      decrypted: {
+        kind: 'reaction',
+        reaction: {
+          text: '❤️',
+          key: {
+            remoteJid: '123@g.us',
+            id: 'TARGET1',
+            fromMe: true,
+            participant: '99@s.whatsapp.net'
+          }
+        }
+      },
+      raw: {}
+    }
+    expect(mapZapoReaction(event)).toEqual({
+      type: 'message',
+      id: 'R1',
+      chat: '123@g.us',
+      from: '55@lid',
+      fromMe: false,
+      isGroup: true,
+      participant: '55@lid',
+      fromAlt: '55@s.whatsapp.net',
+      content: {
+        type: 'reaction',
+        emoji: '❤️',
+        target: { id: 'TARGET1', fromMe: true, participant: '99@s.whatsapp.net' }
+      }
+    })
+  })
+
+  it('returns null for non-reaction addons', () => {
+    const event: WaIncomingAddonEvent = {
+      rawNode,
+      key: addonKey,
+      kind: 'message_edit',
+      targetMessageId: 'TARGET1',
+      decrypted: { kind: 'message_edit', message: { conversation: 'edited' } },
+      raw: {}
+    }
+    expect(mapZapoReaction(event)).toBeNull()
   })
 })
 
@@ -284,5 +479,157 @@ describe('mapZapoChatstate', () => {
       'recording'
     )
     expect(mapZapoChatstate(chatstate({ state: 'paused' })).status).toBe('paused')
+  })
+})
+
+describe('mapZapoCall', () => {
+  it('maps offer using callerPnJid and derives isGroup', () => {
+    expect(
+      mapZapoCall({
+        type: 'offer',
+        callId: 'c1',
+        callerPnJid: 'u@s.whatsapp.net',
+        senderLidJid: '99@lid',
+        isVideo: false,
+        timestampSeconds: 1730000000
+      })
+    ).toEqual({
+      type: 'call',
+      status: 'offer',
+      id: 'c1',
+      from: 'u@s.whatsapp.net',
+      fromAlt: '99@lid',
+      isGroup: false,
+      groupJid: undefined,
+      isVideo: false,
+      timestamp: 1730000000
+    })
+    expect(
+      mapZapoCall({ type: 'offer', groupJid: 'g@g.us', callCreatorJid: 'u@s.whatsapp.net' })
+    ).toMatchObject({ isGroup: true, groupJid: 'g@g.us', from: 'u@s.whatsapp.net' })
+  })
+
+  it('drops non-mapped types and fromless events', () => {
+    expect(mapZapoCall({ type: 'transport', callerPnJid: 'u' })).toBeNull()
+    expect(mapZapoCall({ type: 'offer' })).toBeNull()
+  })
+})
+
+describe('mapZapoGroup', () => {
+  it('routes participant actions', () => {
+    expect(
+      mapZapoGroup({
+        action: 'add',
+        groupJid: 'g@g.us',
+        authorJid: 'admin@s.whatsapp.net',
+        participants: [{ jid: 'a@s.whatsapp.net' }, { phoneJid: 'b@s.whatsapp.net' }]
+      })
+    ).toEqual([
+      {
+        type: 'group_participants',
+        chat: 'g@g.us',
+        action: 'add',
+        participants: ['a@s.whatsapp.net', 'b@s.whatsapp.net'],
+        author: 'admin@s.whatsapp.net',
+        timestamp: undefined
+      }
+    ])
+  })
+
+  it('routes metadata actions to group_update', () => {
+    expect(mapZapoGroup({ action: 'subject', groupJid: 'g@g.us', subject: 'New' })).toEqual([
+      { type: 'group_update', chat: 'g@g.us', subject: 'New' }
+    ])
+    expect(mapZapoGroup({ action: 'announce', groupJid: 'g@g.us', enabled: true })).toEqual([
+      { type: 'group_update', chat: 'g@g.us', announce: true }
+    ])
+    expect(
+      mapZapoGroup({ action: 'ephemeral', groupJid: 'g@g.us', expirationSeconds: 604800 })
+    ).toEqual([{ type: 'group_update', chat: 'g@g.us', ephemeralSeconds: 604800 }])
+  })
+
+  it('fans out membership requests', () => {
+    expect(
+      mapZapoGroup({
+        action: 'created_membership_requests',
+        groupJid: 'g@g.us',
+        membershipRequests: [
+          { jid: 'a@lid', phoneJid: '5511888888888@s.whatsapp.net' },
+          { phoneJid: 'b@s.whatsapp.net' }
+        ]
+      })
+    ).toEqual([
+      {
+        type: 'membership_request',
+        chat: 'g@g.us',
+        action: 'created',
+        participant: 'a@lid',
+        participantAlt: '5511888888888@s.whatsapp.net'
+      },
+      {
+        type: 'membership_request',
+        chat: 'g@g.us',
+        action: 'created',
+        participant: 'b@s.whatsapp.net'
+      }
+    ])
+  })
+
+  it('maps invite-link request via authorJid when membershipRequests is empty', () => {
+    expect(
+      mapZapoGroup({
+        action: 'created_membership_requests',
+        groupJid: 'g@g.us',
+        authorJid: '79@lid',
+        membershipRequests: []
+      })
+    ).toEqual([
+      {
+        type: 'membership_request',
+        chat: 'g@g.us',
+        action: 'created',
+        participant: '79@lid',
+        author: '79@lid'
+      }
+    ])
+  })
+
+  it('maps revoked membership from participants', () => {
+    expect(
+      mapZapoGroup({
+        action: 'revoked_membership_requests',
+        groupJid: 'g@g.us',
+        participants: [{ jid: '79@lid', phoneJid: '558788233508@s.whatsapp.net' }]
+      })
+    ).toEqual([
+      {
+        type: 'membership_request',
+        chat: 'g@g.us',
+        action: 'revoked',
+        participant: '79@lid',
+        participantAlt: '558788233508@s.whatsapp.net'
+      }
+    ])
+  })
+
+  it('returns empty for unmapped actions and missing group', () => {
+    expect(
+      mapZapoGroup({ action: 'membership_approval_mode', groupJid: 'g@g.us', enabled: true })
+    ).toEqual([])
+    expect(mapZapoGroup({ action: 'add', participants: [{ jid: 'a' }] })).toEqual([])
+  })
+
+  it('drops metadata actions without a value (no fabrication)', () => {
+    expect(mapZapoGroup({ action: 'announce', groupJid: 'g@g.us' })).toEqual([])
+    expect(mapZapoGroup({ action: 'ephemeral', groupJid: 'g@g.us' })).toEqual([])
+  })
+
+  it('keeps explicit false for announce and restrict (false is not "missing")', () => {
+    expect(mapZapoGroup({ action: 'announce', groupJid: 'g@g.us', enabled: false })).toEqual([
+      { type: 'group_update', chat: 'g@g.us', announce: false }
+    ])
+    expect(mapZapoGroup({ action: 'restrict', groupJid: 'g@g.us', enabled: false })).toEqual([
+      { type: 'group_update', chat: 'g@g.us', restrict: false }
+    ])
   })
 })

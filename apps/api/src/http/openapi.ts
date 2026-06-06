@@ -65,12 +65,20 @@ function messageExamples(): Record<string, OpenAPIV3.ExampleObject> {
 
 const INBOUND_MEDIA_SCHEMA: OpenAPIV3.SchemaObject = {
   type: 'object',
+  description:
+    'Media metadata. In `none` storage mode it also carries the download pointers (directPath, url, mediaKey, fileEncSha256, fileSha256) so the client can fetch bytes via POST /sessions/:id/media/download. In `s3` mode the pointers are dropped and `url` is the public link with `stored: "s3"`.',
   properties: {
     mimetype: { type: 'string' },
     size: { type: 'number' },
     width: { type: 'number' },
     height: { type: 'number' },
-    seconds: { type: 'number' }
+    seconds: { type: 'number' },
+    directPath: { type: 'string' },
+    url: { type: 'string' },
+    mediaKey: { type: 'string' },
+    fileEncSha256: { type: 'string' },
+    fileSha256: { type: 'string' },
+    stored: { type: 'string', enum: ['s3'] }
   }
 }
 
@@ -201,9 +209,29 @@ const WEBHOOK_DELIVERY_SCHEMA: OpenAPIV3.SchemaObject = {
         fromMe: { type: 'boolean' },
         isGroup: { type: 'boolean' },
         participant: { type: 'string' },
+        fromAlt: {
+          type: 'string',
+          description:
+            "Alternate addressing of `from` — the phone-number jid when `from` is a lid, or vice-versa. Omitted when the engine doesn't provide it."
+        },
         pushName: { type: 'string' },
         timestamp: { type: 'number' },
-        content: INBOUND_CONTENT_SCHEMA
+        content: INBOUND_CONTENT_SCHEMA,
+        mentions: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'jids mentioned in the message (omitted when none).'
+        },
+        quoted: {
+          type: 'object',
+          description: 'Set when the message replies to/quotes another message.',
+          required: ['id'],
+          properties: {
+            id: { type: 'string', description: 'id of the quoted message' },
+            participant: { type: 'string', description: 'author jid of the quoted message' },
+            content: INBOUND_CONTENT_SCHEMA
+          }
+        }
       }
     },
     {
@@ -235,6 +263,64 @@ const WEBHOOK_DELIVERY_SCHEMA: OpenAPIV3.SchemaObject = {
           enum: ['available', 'unavailable', 'composing', 'recording', 'paused']
         },
         lastSeen: { type: 'number', nullable: true }
+      }
+    },
+    {
+      type: 'object',
+      required: ['type', 'status', 'from', 'isGroup'],
+      properties: {
+        type: { type: 'string', enum: ['call'] },
+        status: { type: 'string', enum: ['offer', 'accept', 'reject', 'terminate'] },
+        id: { type: 'string' },
+        from: { type: 'string' },
+        fromAlt: { type: 'string' },
+        isGroup: { type: 'boolean' },
+        groupJid: { type: 'string' },
+        isVideo: { type: 'boolean' },
+        timestamp: { type: 'number' }
+      }
+    },
+    {
+      type: 'object',
+      required: ['type', 'chat', 'action', 'participants'],
+      properties: {
+        type: { type: 'string', enum: ['group_participants'] },
+        chat: { type: 'string' },
+        action: { type: 'string', enum: ['add', 'remove', 'promote', 'demote'] },
+        participants: { type: 'array', items: { type: 'string' } },
+        author: { type: 'string' },
+        authorAlt: { type: 'string' },
+        timestamp: { type: 'number' }
+      }
+    },
+    {
+      type: 'object',
+      required: ['type', 'chat'],
+      properties: {
+        type: { type: 'string', enum: ['group_update'] },
+        chat: { type: 'string' },
+        subject: { type: 'string' },
+        description: { type: 'string' },
+        announce: { type: 'boolean' },
+        restrict: { type: 'boolean' },
+        ephemeralSeconds: { type: 'number' },
+        author: { type: 'string' },
+        authorAlt: { type: 'string' },
+        timestamp: { type: 'number' }
+      }
+    },
+    {
+      type: 'object',
+      required: ['type', 'chat', 'action', 'participant'],
+      properties: {
+        type: { type: 'string', enum: ['membership_request'] },
+        chat: { type: 'string' },
+        action: { type: 'string', enum: ['created', 'revoked', 'rejected'] },
+        participant: { type: 'string' },
+        participantAlt: { type: 'string' },
+        author: { type: 'string' },
+        authorAlt: { type: 'string' },
+        timestamp: { type: 'number' }
       }
     }
   ]
@@ -282,6 +368,40 @@ const WEBHOOK_DELIVERY_EXAMPLES: Record<string, OpenAPIV3.ExampleObject> = {
       content: { type: 'image', media: { mimetype: 'image/jpeg', size: 12345 }, caption: 'Olha!' }
     }
   },
+  message_reply_mention_group: {
+    summary: 'message event (reply with mention, group)',
+    value: {
+      type: 'message',
+      id: '3EB0...',
+      chat: '120363000000000000@g.us',
+      from: '199999999999999@lid',
+      fromMe: false,
+      isGroup: true,
+      participant: '199999999999999@lid',
+      fromAlt: '5511888888888@s.whatsapp.net',
+      timestamp: 1730000000,
+      content: { type: 'text', text: '@5511777777777 isso mesmo!' },
+      mentions: ['5511777777777@s.whatsapp.net'],
+      quoted: {
+        id: '3EA9...',
+        participant: '5511777777777@s.whatsapp.net',
+        content: { type: 'text', text: 'alguém confirma?' }
+      }
+    }
+  },
+  message_reaction_group: {
+    summary: 'message event (reaction, group)',
+    value: {
+      type: 'message',
+      id: '3EB0...',
+      chat: '120363000000000000@g.us',
+      from: '5511888888888@s.whatsapp.net',
+      fromMe: false,
+      isGroup: true,
+      participant: '5511888888888@s.whatsapp.net',
+      content: { type: 'reaction', emoji: '❤️', target: { id: '3EA9...', fromMe: true } }
+    }
+  },
   ack: {
     summary: 'ack event (read)',
     value: {
@@ -297,6 +417,47 @@ const WEBHOOK_DELIVERY_EXAMPLES: Record<string, OpenAPIV3.ExampleObject> = {
   presence: {
     summary: 'presence event (typing)',
     value: { type: 'presence', chat: '5511888888888@s.whatsapp.net', status: 'composing' }
+  },
+  call: {
+    summary: 'call event (incoming)',
+    value: {
+      type: 'call',
+      status: 'offer',
+      id: 'CALL-1',
+      from: '5511888888888@s.whatsapp.net',
+      fromAlt: '199999999999999@lid',
+      isGroup: false,
+      isVideo: false,
+      timestamp: 1730000000
+    }
+  },
+  group_participants: {
+    summary: 'group participants event (add)',
+    value: {
+      type: 'group_participants',
+      chat: '120363000000000000@g.us',
+      action: 'add',
+      participants: ['5511888888888@s.whatsapp.net'],
+      author: '5511999999999@s.whatsapp.net'
+    }
+  },
+  group_update: {
+    summary: 'group update event (subject)',
+    value: {
+      type: 'group_update',
+      chat: '120363000000000000@g.us',
+      subject: 'Novo nome',
+      author: '5511999999999@s.whatsapp.net'
+    }
+  },
+  membership_request: {
+    summary: 'membership request event (created)',
+    value: {
+      type: 'membership_request',
+      chat: '120363000000000000@g.us',
+      action: 'created',
+      participant: '5511888888888@s.whatsapp.net'
+    }
   }
 }
 
@@ -306,9 +467,14 @@ const WEBHOOK_DESCRIPTION = [
   'Each delivery is a JSON POST to your `url` with one of these payloads:',
   '- `qr`: new QR code to scan.',
   '- `connection`: channel/connection state (`connecting`, `qr`, `connected`, `disconnected`, `logged_out`).',
-  '- `message`: inbound/outbound messages of any type. `content` is normalized and discriminated by `type` (text, image, video, audio, document, sticker, location, contact, reaction, poll, buttons_response, list_response). Group messages have `isGroup: true`, `chat` ending in `@g.us` and `participant` set to the author jid. Media payloads carry metadata only; fetch bytes separately.',
+  '- `message`: inbound/outbound messages of any type. `content` is normalized and discriminated by `type` (text, image, video, audio, document, sticker, location, contact, reaction, poll, buttons_response, list_response). Group messages have `isGroup: true`, `chat` ending in `@g.us` and `participant` set to the author jid. `fromAlt` carries the alternate addressing of `from` (the phone-number jid when `from` is a lid, or vice-versa) when the engine provides it. `mentions` lists the jids mentioned in the message (omitted when none); `quoted` carries the replied-to message (`id`, `participant`, normalized `content`) when the message is a reply. Media payloads carry metadata only; fetch bytes separately.',
   '- `ack`: message delivery status for the given `ids` (`pending`, `sent`, `delivered`, `read`, `played`, `error`).',
   '- `presence`: chat presence (`available`, `unavailable`, `composing`, `recording`, `paused`).',
+  '- `call`: incoming call signaling (`offer`, `accept`, `reject`, `terminate`). A missed call is an `offer` not followed by `accept`, then a `terminate`.',
+  '- `group_participants`: members `add`ed, `remove`d, `promote`d or `demote`d. `participants` are the affected jids; `author` is the admin who acted.',
+  '- `group_update`: a group metadata change. Each delivery is a partial patch (only the fields that changed): `subject`, `description`, `announce`, `restrict`, `ephemeralSeconds`.',
+  '- `membership_request`: a group join request `created`, `revoked` or `rejected` (`rejected` is baileys-only).',
+  '- lid<->pn: `call`, `group_participants`, `group_update` and `membership_request` expose the alternate addressing of their principal jid (`fromAlt` / `authorAlt` / `participantAlt`) when the engine resolves it.',
   '',
   'Payloads are identical across the zapo and baileys engines. See the WebhookDelivery schema for full shapes and examples.'
 ].join('\n')
@@ -322,6 +488,19 @@ function decorateWebhooks(doc: OpenAPIV3.Document): void {
   } as OpenAPIV3.SchemaObject
   const post = doc.paths?.['/webhooks/']?.post as OpenAPIV3.OperationObject | undefined
   if (post) post.description = WEBHOOK_DESCRIPTION
+}
+
+function decorateMediaDownload(doc: OpenAPIV3.Document): void {
+  const post = doc.paths?.['/sessions/{id}/media/download']?.post as
+    | OpenAPIV3.OperationObject
+    | undefined
+  if (!post) return
+  post.responses[200] = {
+    description: 'Raw media bytes',
+    content: {
+      'application/octet-stream': { schema: { type: 'string', format: 'binary' } }
+    }
+  }
 }
 
 export function decorateOpenApi(doc: OpenAPIV3.Document): OpenAPIV3.Document {
@@ -344,6 +523,7 @@ export function decorateOpenApi(doc: OpenAPIV3.Document): OpenAPIV3.Document {
   if (json) json.examples = messageExamples()
 
   decorateWebhooks(doc)
+  decorateMediaDownload(doc)
 
   return doc
 }

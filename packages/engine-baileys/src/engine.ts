@@ -1,11 +1,23 @@
+import type { Readable } from 'node:stream'
 import { errors, type EngineOptions, type WaEngine } from '@multi-wa/core'
-import type { EngineEvent, MessageContent, SendMessageResult } from '@multi-wa/types'
-import makeWASocket, { DisconnectReason, jidNormalizedUser, type WASocket } from 'baileys'
+import type { EngineEvent, MediaRef, MessageContent, SendMessageResult } from '@multi-wa/types'
+import makeWASocket, {
+  DisconnectReason,
+  downloadContentFromMessage,
+  jidNormalizedUser,
+  type WASocket
+} from 'baileys'
 import { clearBaileys, usePostgresAuthState } from './auth-state'
 import {
+  isBaileysReactionUpsert,
   mapBaileysAck,
+  mapBaileysCall,
+  mapBaileysGroupParticipants,
+  mapBaileysGroupUpdate,
+  mapBaileysMembershipRequest,
   mapBaileysMessageEvent,
   mapBaileysPresence,
+  mapBaileysReaction,
   mapBaileysReceipt
 } from './events'
 import { createBaileysGroups } from './groups'
@@ -69,7 +81,16 @@ export class BaileysEngine implements WaEngine {
       if (type !== 'notify') return
       for (const message of messages) {
         if (!message.key.remoteJid) continue
+        // reactions arrive via the dedicated 'messages.reaction' event
+        if (isBaileysReactionUpsert(message)) continue
         this.emit(mapBaileysMessageEvent(message))
+      }
+    })
+
+    sock.ev.on('messages.reaction', (reactions) => {
+      for (const entry of reactions) {
+        if (!entry.reaction.key?.remoteJid) continue
+        this.emit(mapBaileysReaction(entry))
       }
     })
 
@@ -91,6 +112,30 @@ export class BaileysEngine implements WaEngine {
       for (const event of mapBaileysPresence(update)) {
         this.emit(event)
       }
+    })
+
+    sock.ev.on('call', (calls) => {
+      for (const call of calls) {
+        const event = mapBaileysCall(call)
+        if (event) this.emit(event)
+      }
+    })
+
+    sock.ev.on('group-participants.update', (update) => {
+      const event = mapBaileysGroupParticipants(update)
+      if (event) this.emit(event)
+    })
+
+    sock.ev.on('groups.update', (updates) => {
+      for (const update of updates) {
+        const event = mapBaileysGroupUpdate(update)
+        if (event) this.emit(event)
+      }
+    })
+
+    sock.ev.on('group.join-request', (update) => {
+      const event = mapBaileysMembershipRequest(update)
+      if (event) this.emit(event)
     })
   }
 
@@ -160,6 +205,17 @@ export class BaileysEngine implements WaEngine {
       this.emit(mapBaileysMessageEvent(result as any))
     }
     return { id: result?.key.id ?? undefined }
+  }
+
+  async downloadMedia(ref: MediaRef): Promise<Readable> {
+    const { mediaKey, directPath, url } = ref.media
+    if (!mediaKey || !directPath) {
+      throw errors.badRequest('media reference is missing mediaKey or directPath')
+    }
+    return downloadContentFromMessage(
+      { mediaKey: Buffer.from(mediaKey, 'base64'), directPath, url: url ?? undefined },
+      ref.type
+    )
   }
 }
 
