@@ -23,9 +23,6 @@ export function buildZapoStore(pool: Pool, tablePrefix: string): ZapoStoreBundle
       messages: 'none',
       threads: 'none',
       contacts: 'none'
-    },
-    cacheProviders: {
-      messageSecret: 'pg'
     }
   })
   return { result, store }
