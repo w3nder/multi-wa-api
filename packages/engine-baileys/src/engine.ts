@@ -10,6 +10,7 @@ import makeWASocket, {
 import { clearBaileys, usePostgresAuthState } from './auth-state'
 import {
   isBaileysEditUpsert,
+  isBaileysProtocolMessage,
   isBaileysReactionUpsert,
   mapBaileysAck,
   mapBaileysCall,
@@ -89,6 +90,7 @@ export class BaileysEngine implements WaEngine {
           this.emit(mapBaileysEdit(message))
           continue
         }
+        if (isBaileysProtocolMessage(message)) continue
         this.emit(mapBaileysMessageEvent(message))
       }
     })

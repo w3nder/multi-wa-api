@@ -292,6 +292,10 @@ export function isZapoEditMessage(event: WaIncomingMessageEvent): boolean {
   return unwrap(event.message ?? {}).protocolMessage?.editedMessage != null
 }
 
+export function isZapoProtocolMessage(event: WaIncomingMessageEvent): boolean {
+  return unwrap(event.message ?? {}).protocolMessage != null
+}
+
 export function mapZapoEditFromMessage(event: WaIncomingMessageEvent): MessageEditEvent {
   const pm = unwrap(event.message ?? {}).protocolMessage
   const chat = event.key.remoteJid ?? ''

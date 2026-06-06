@@ -9,6 +9,7 @@ import type {
 import {
   isZapoAddonEnvelope,
   isZapoEditMessage,
+  isZapoProtocolMessage,
   mapZapoCall,
   mapZapoChatstate,
   mapZapoContent,
@@ -744,5 +745,26 @@ describe('zapo message_edit mappers', () => {
       timestamp: 1730000500,
       content: { type: 'text', text: 'edited via web' }
     })
+  })
+
+  it('flags non-edit protocol messages for suppression', () => {
+    const mkEvent = (message: unknown): WaIncomingMessageEvent =>
+      ({
+        rawNode,
+        key: {
+          remoteJid: 'c@s.whatsapp.net',
+          id: 'M9',
+          fromMe: false,
+          isGroup: false,
+          isBroadcast: false,
+          isNewsletter: false,
+          senderDevice: 0
+        },
+        message
+      }) as WaIncomingMessageEvent
+    const revoke = mkEvent({ protocolMessage: { type: 0, key: { id: 'ORIGX' } } })
+    expect(isZapoProtocolMessage(revoke)).toBe(true)
+    expect(isZapoEditMessage(revoke)).toBe(false)
+    expect(isZapoProtocolMessage(mkEvent({ conversation: 'oi' }))).toBe(false)
   })
 })

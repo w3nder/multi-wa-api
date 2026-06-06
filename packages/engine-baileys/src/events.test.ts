@@ -2,6 +2,7 @@ import { proto, type WAMessageKey } from 'baileys'
 import { describe, expect, it } from 'vitest'
 import {
   isBaileysEditUpsert,
+  isBaileysProtocolMessage,
   isBaileysReactionUpsert,
   mapBaileysAck,
   mapBaileysAckStatus,
@@ -729,5 +730,12 @@ describe('isBaileysEditUpsert / mapBaileysEdit', () => {
       timestamp: 1730000900,
       content: { type: 'text', text: 'fixed typo' }
     })
+  })
+
+  it('flags non-edit protocol messages for suppression', () => {
+    const revoke = { key: {}, message: { protocolMessage: { type: 0, key: { id: 'ORIGX' } } } }
+    expect(isBaileysProtocolMessage(revoke as never)).toBe(true)
+    expect(isBaileysEditUpsert(revoke as never)).toBe(false)
+    expect(isBaileysProtocolMessage({ key: {}, message: { conversation: 'oi' } } as never)).toBe(false)
   })
 })

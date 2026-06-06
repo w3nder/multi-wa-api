@@ -7,6 +7,7 @@ import { buildZapoStore, type ZapoStoreBundle } from './store'
 import {
   isZapoAddonEnvelope,
   isZapoEditMessage,
+  isZapoProtocolMessage,
   mapZapoCall,
   mapZapoChatstate,
   mapZapoEditFromAddon,
@@ -92,6 +93,7 @@ export class ZapoEngine implements WaEngine {
         this.emit(mapZapoEditFromMessage(event))
         return
       }
+      if (isZapoProtocolMessage(event)) return
       this.emit(mapZapoMessageEvent(event))
     })
 

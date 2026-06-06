@@ -252,6 +252,10 @@ export function isBaileysEditUpsert(message: WAMessage): boolean {
   )
 }
 
+export function isBaileysProtocolMessage(message: WAMessage): boolean {
+  return normalizeMessageContent(message.message)?.protocolMessage != null
+}
+
 export function mapBaileysEdit(message: WAMessage): MessageEditEvent {
   const protocolMessage = normalizeMessageContent(message.message)?.protocolMessage
   const edited = protocolMessage?.editedMessage ?? undefined
