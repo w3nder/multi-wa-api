@@ -1,4 +1,4 @@
-import type { MediaSource, MessageContent } from '@multi-wa/types'
+import type { InboundContent, MediaSource, MessageContent } from '@multi-wa/types'
 import type { WaSendMessageContent } from 'zapo-js'
 
 async function resolveMedia(media: MediaSource): Promise<Uint8Array> {
@@ -83,4 +83,55 @@ function buildVcard(fullName: string, phone: string): string {
     `TEL;type=CELL;type=VOICE;waid=${waid}:${phone}`,
     'END:VCARD'
   ].join('\n')
+}
+
+export function toInboundContent(content: MessageContent): InboundContent {
+  switch (content.type) {
+    case 'text':
+      return { type: 'text', text: content.text }
+    case 'image':
+      return {
+        type: 'image',
+        media: { mimetype: DEFAULT_MIME.image },
+        caption: content.caption
+      }
+    case 'video':
+      return {
+        type: 'video',
+        media: { mimetype: DEFAULT_MIME.video },
+        caption: content.caption
+      }
+    case 'audio':
+      return {
+        type: 'audio',
+        media: { mimetype: DEFAULT_MIME.audio },
+        voice: content.voice ?? false
+      }
+    case 'document':
+      return {
+        type: 'document',
+        media: { mimetype: content.mimetype ?? DEFAULT_MIME.document },
+        fileName: content.filename,
+        caption: content.caption
+      }
+    case 'sticker':
+      return {
+        type: 'sticker',
+        media: { mimetype: DEFAULT_MIME.sticker }
+      }
+    case 'location':
+      return {
+        type: 'location',
+        latitude: content.latitude,
+        longitude: content.longitude,
+        name: content.name,
+        address: content.address
+      }
+    case 'contact':
+      return {
+        type: 'contact',
+        displayName: content.fullName,
+        vcard: buildVcard(content.fullName, content.phone)
+      }
+  }
 }

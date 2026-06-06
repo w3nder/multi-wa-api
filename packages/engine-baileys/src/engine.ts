@@ -156,6 +156,9 @@ export class BaileysEngine implements WaEngine {
 
   async send(to: string, content: MessageContent): Promise<SendMessageResult> {
     const result = await this.requireSocket().sendMessage(to, toBaileysContent(content))
+    if (result?.key) {
+      this.emit(mapBaileysMessageEvent(result as any))
+    }
     return { id: result?.key.id ?? undefined }
   }
 }
