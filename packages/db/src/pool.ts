@@ -11,7 +11,7 @@ export function getPool(): pg.Pool {
   const env = loadConfig()
   pool = new Pool({
     connectionString: env.DATABASE_URL,
-    max: 20,
+    max: env.PG_POOL_MAX,
     idleTimeoutMillis: 30000
   })
   return pool

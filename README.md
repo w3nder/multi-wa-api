@@ -80,6 +80,20 @@ pnpm db:migrate               # cria as tabelas
 pnpm dev                      # sobe apps/api em http://localhost:3000
 ```
 
+### Sem Postgres (dev)
+
+Para subir tudo isolado, sem um Postgres rodando, use o launcher de dev que embute
+um Postgres em WASM ([PGlite](https://github.com/electric-sql/pglite)) e aponta a API
+para ele — nada disso entra no build de produção (é só dev):
+
+```bash
+pnpm dev:pglite               # sobe um Postgres embutido + a API, sem Docker/Postgres
+```
+
+Persiste em `.pglite/` por padrão (mantém o pareamento entre reinícios). Variáveis:
+`PGLITE_DATA_DIR=memory` (efêmero), `PGLITE_PORT` (porta, padrão 5433),
+`PGLITE_FRESH=1` (zera o dado antes de subir).
+
 Fluxo mínimo com `curl`:
 
 ```bash

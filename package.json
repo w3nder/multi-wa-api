@@ -16,6 +16,7 @@
     "test:coverage": "vitest run --coverage",
     "lint": "turbo run lint",
     "dev": "pnpm --filter @multi-wa/api dev",
+    "dev:pglite": "tsx scripts/dev-pglite.ts",
     "start": "pnpm --filter @multi-wa/api start",
     "db:migrate": "pnpm --filter @multi-wa/db migrate",
     "format": "prettier --write .",
@@ -29,6 +30,8 @@
     ]
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.1",
+    "@electric-sql/pglite-socket": "^0.2.1",
     "@eslint/js": "^9.18.0",
     "@types/node": "^22.10.5",
     "@vitest/coverage-v8": "^2.1.9",

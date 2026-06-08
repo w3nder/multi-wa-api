@@ -37,6 +37,7 @@ function fakeContainer(): Container {
       PORT: 3000,
       LOG_LEVEL: 'silent',
       DATABASE_URL: 'postgres://localhost/none',
+      PG_POOL_MAX: 20,
       JWT_SECRET: 'test-secret-test-secret-test-secret-123',
       JWT_ACCESS_TTL: 900,
       JWT_REFRESH_TTL: 3600,
