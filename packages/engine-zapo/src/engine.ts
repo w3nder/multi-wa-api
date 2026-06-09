@@ -1,6 +1,6 @@
 import type { Readable } from 'node:stream'
 import { errors, type EngineOptions, type WaEngine } from '@multi-wa/core'
-import type { EngineEvent, MediaRef, MessageContent, SendMessageResult } from '@multi-wa/types'
+import type { EngineEvent, MessageContent, MediaRef, MessageEvent, SendMessageResult } from '@multi-wa/types'
 import { downloadMediaMessage, WaClient } from 'zapo-js'
 import type { PgCleanupPoller } from '@zapo-js/store-postgres'
 import { buildZapoStore, type ZapoStoreBundle } from './store'
@@ -20,7 +20,7 @@ import {
 } from './events'
 import { createZapoGroups } from './groups'
 import { toZapoLogger } from './logger'
-import { toZapoContent } from './translate'
+import { toZapoContent, toInboundContent } from './translate'
 
 const RECONNECT_DELAY_MS = 2000
 
@@ -184,6 +184,29 @@ export class ZapoEngine implements WaEngine {
 
   async send(to: string, content: MessageContent): Promise<SendMessageResult> {
     const result = await this.requireClient().message.send(to, await toZapoContent(content))
+    
+    try {
+      const credentials = await this.ensureBundle()
+        .store.session(this.options.sessionId)
+        .auth.load()
+      
+      if (credentials?.meJid) {
+        const messageEvent: MessageEvent = {
+          type: 'message',
+          id: result.id,
+          chat: to,
+          from: credentials.meJid,
+          fromMe: true,
+          isGroup: to.endsWith('@g.us'),
+          content: toInboundContent(content),
+          timestamp: Math.floor(Date.now() / 1000)
+        }
+        this.emit(messageEvent)
+      }
+    } catch {
+      // If event emission fails, still return the send result
+    }
+    
     return { id: result.id }
   }
 
